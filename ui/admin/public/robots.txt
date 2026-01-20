@@ -1,0 +1,8 @@
+# Heliox Admin Panel - Disallow indexing (private admin area)
+User-agent: *
+Disallow: /
+
+# Allow specific assets if needed
+Allow: /favicon.ico
+Allow: /*.css
+Allow: /*.js
