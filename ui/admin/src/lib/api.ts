@@ -58,10 +58,13 @@ export interface ApiKey {
   key_prefix: string
   key?: string // Only returned on creation
   is_active: boolean
+  status?: string
   rate_limit_rps: number
   rate_limit_burst: number
   daily_quota: number
   monthly_quota: number
+  quota_daily?: number
+  quota_monthly?: number
   daily_usage?: number
   monthly_usage?: number
   created_at: string
