@@ -23,7 +23,7 @@ export default function ApiKeysPage() {
   
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ['api-keys'],
-    queryFn: () => adminApi.getApiKeys(),
+    queryFn: () => adminApi.getKeys(),
   })
   
   const { data: tenants = [] } = useQuery({
