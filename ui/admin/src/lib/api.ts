@@ -125,6 +125,17 @@ export interface BlockedKey {
   blocked_until: string
 }
 
+export interface BlockRule {
+  id: string
+  api_key_id: string
+  reason: string
+  reason_detail?: string
+  anomaly_score?: number
+  blocked_at: string
+  blocked_until?: string
+  is_active: boolean
+}
+
 export interface RequestLog {
   id: string
   api_key_id: string
@@ -285,13 +296,14 @@ export const adminApi = {
   },
 
   // Abuse Management
-  getBlockedKeys: async (): Promise<BlockedKey[]> => {
+  getBlockedKeys: async (): Promise<BlockRule[]> => {
     return fetchApi('/admin/abuse/blocked')
   },
 
-  unblockKey: async (keyId: string): Promise<void> => {
+  unblockKey: async (keyId: string, reason?: string): Promise<void> => {
     return fetchApi(`/admin/abuse/unblock/${keyId}`, {
       method: 'POST',
+      body: JSON.stringify({ reason }),
     })
   },
 
