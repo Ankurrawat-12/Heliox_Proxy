@@ -52,7 +52,10 @@ Thumbs.db
 
 # Logs
 *.log
-logs/
+/logs/
+
+# Allow Next.js logs route
+!ui/admin/src/app/logs/
 
 # Docker
 docker-compose.override.yml
