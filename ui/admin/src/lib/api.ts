@@ -10,6 +10,12 @@ function getAdminKey(): string {
   return localStorage.getItem('adminKey') || ''
 }
 
+// Set admin key in localStorage (client-side only)
+export function setAdminKey(key: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('adminKey', key)
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
