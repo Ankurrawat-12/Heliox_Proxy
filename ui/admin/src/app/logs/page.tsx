@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminApi, RequestLog } from '@/lib/api'
@@ -15,14 +17,16 @@ export default function LogsPage() {
     cache_status: '',
   })
   
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['logs', page, filters],
     queryFn: () => adminApi.getLogs({
       page,
       page_size: 50,
-      ...filters,
+      status_code: filters.status_code ? parseInt(filters.status_code) : undefined,
+      cache_status: filters.cache_status || undefined,
     }),
     refetchInterval: 10000,
+    retry: 1,
   })
   
   const getCacheStatusBadge = (status: string) => {
@@ -161,6 +165,20 @@ export default function LogsPage() {
           </div>
         </div>
       </div>
+      
+      {error && (
+        <div className="card bg-red-50 border border-red-200 text-red-700">
+          <p className="font-medium">Error loading logs</p>
+          <p className="text-sm mt-1">{error.message}</p>
+        </div>
+      )}
+      
+      {/* Debug info */}
+      {data && (
+        <div className="text-sm text-gray-500">
+          Showing {data.items?.length || 0} of {data.total} total logs (page {data.page})
+        </div>
+      )}
       
       <DataTable
         columns={columns}

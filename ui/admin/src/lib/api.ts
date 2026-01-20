@@ -144,15 +144,19 @@ export interface BlockRule {
 
 export interface RequestLog {
   id: string
-  api_key_id: string
-  route_id: string
+  request_id?: string
+  api_key_id?: string
+  route_id?: string
+  tenant_id?: string
+  tenant_name?: string
   method: string
   path: string
   status_code: number
   latency_ms: number
   cache_status: string
   timestamp: string
-  created_at: string
+  error_type?: string
+  client_ip?: string
   api_key_name?: string
   route_name?: string
 }
@@ -162,12 +166,13 @@ export interface PaginatedLogs {
   page: number
   page_size: number
   total: number
+  has_more?: boolean
 }
 
 export interface LogFilters {
   page?: number
   page_size?: number
-  status_code?: string
+  status_code?: number
   cache_status?: string
 }
 
@@ -200,7 +205,7 @@ export const adminApi = {
     const params = new URLSearchParams()
     if (filters.page) params.append('page', String(filters.page))
     if (filters.page_size) params.append('page_size', String(filters.page_size))
-    if (filters.status_code) params.append('status_code', filters.status_code)
+    if (filters.status_code) params.append('status_code', String(filters.status_code))
     if (filters.cache_status) params.append('cache_status', filters.cache_status)
     return fetchApi(`/admin/analytics/logs?${params.toString()}`)
   },
