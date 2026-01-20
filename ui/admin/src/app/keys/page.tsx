@@ -99,7 +99,7 @@ export default function ApiKeysPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (key: ApiKey) => getStatusBadge(key.status || (key.is_active ? 'active' : 'disabled')),
+      render: (key: ApiKey) => getStatusBadge(key.is_active ? 'active' : 'disabled'),
     },
     {
       key: 'quotas',
