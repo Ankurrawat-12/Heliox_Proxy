@@ -23,6 +23,36 @@ from src.services.redis_client import redis_client
 logger = logging.getLogger(__name__)
 
 
+def run_migrations() -> None:
+    """Run Alembic migrations on startup."""
+    import subprocess
+    import os
+    
+    # Get the directory where alembic.ini is located
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    alembic_ini = os.path.join(base_dir, "alembic.ini")
+    
+    if os.path.exists(alembic_ini):
+        logger.info("Running database migrations...")
+        try:
+            result = subprocess.run(
+                ["alembic", "upgrade", "head"],
+                cwd=base_dir,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                logger.info("Migrations completed successfully")
+            else:
+                logger.warning(f"Migration output: {result.stdout}")
+                if result.stderr:
+                    logger.warning(f"Migration stderr: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Could not run migrations: {e}")
+    else:
+        logger.info("No alembic.ini found, skipping migrations")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan handler."""
@@ -30,6 +60,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     
     # Startup
     setup_logging()
+    
+    # Run database migrations
+    run_migrations()
     
     # Connect to Redis
     await redis_client.connect()

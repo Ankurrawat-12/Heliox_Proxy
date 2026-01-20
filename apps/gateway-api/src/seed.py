@@ -8,8 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_context
-from src.models import ApiKey, CachePolicy, Route, Tenant
+from src.models import ApiKey, CachePolicy, Plan, Route, Tenant
 from src.models.api_key import ApiKeyStatus
+from src.models.plan import PREDEFINED_PLANS, PlanTier
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +209,7 @@ async def seed_database(db: AsyncSession) -> dict:
     """Seed database with realistic data. Returns summary of created entities."""
     
     summary = {
+        "plans_created": 0,
         "tenants_created": 0,
         "api_keys_created": 0,
         "cache_policies_created": 0,
@@ -215,19 +217,39 @@ async def seed_database(db: AsyncSession) -> dict:
         "skipped": False,
     }
     
-    # Check if already seeded
+    # Always ensure plans exist (even if other data is seeded)
+    existing_plans = await db.execute(select(Plan).limit(1))
+    default_plan = None
+    if not existing_plans.scalar_one_or_none():
+        logger.info("Seeding plans...")
+        for plan_data in PREDEFINED_PLANS:
+            plan = Plan(**plan_data)
+            db.add(plan)
+            summary["plans_created"] += 1
+            if plan_data.get("is_default"):
+                default_plan = plan
+        await db.flush()
+    else:
+        # Get existing default plan
+        result = await db.execute(select(Plan).where(Plan.is_default == True))
+        default_plan = result.scalar_one_or_none()
+    
+    # Check if tenants already seeded
     existing = await db.execute(select(Tenant).limit(1))
     if existing.scalar_one_or_none():
-        logger.info("Database already seeded, skipping")
+        logger.info("Database already seeded, skipping tenant/key/route seeding")
         summary["skipped"] = True
         return summary
     
     logger.info("Seeding database with initial data...")
     
-    # Create tenants
+    # Create tenants with default plan
     tenants = []
     for tenant_data in SEED_TENANTS:
-        tenant = Tenant(**tenant_data)
+        tenant = Tenant(
+            **tenant_data,
+            plan_id=default_plan.id if default_plan else None,
+        )
         db.add(tenant)
         tenants.append(tenant)
         summary["tenants_created"] += 1
