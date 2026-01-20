@@ -24,6 +24,10 @@ orjson>=3.9.12
 mmh3>=4.1.0
 cachetools>=5.3.2
 
+# Authentication
+bcrypt>=4.1.2
+PyJWT>=2.8.0
+
 # Development
 pytest>=7.4.4
 pytest-asyncio>=0.23.3

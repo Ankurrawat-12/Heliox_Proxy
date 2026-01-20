@@ -7,10 +7,12 @@ from src.models.plan import Plan
 from src.models.request_log import RequestLog
 from src.models.route import Route
 from src.models.tenant import Tenant
+from src.models.user import User
 
 __all__ = [
     "Plan",
     "Tenant",
+    "User",
     "ApiKey",
     "Route",
     "CachePolicy",

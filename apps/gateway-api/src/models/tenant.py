@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.models.api_key import ApiKey
     from src.models.plan import Plan
     from src.models.route import Route
+    from src.models.user import User
 
 
 class Tenant(Base):
@@ -42,6 +43,21 @@ class Tenant(Base):
         index=True,
     )
     
+    # Stripe billing
+    stripe_customer_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+    stripe_subscription_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    billing_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -67,6 +83,10 @@ class Tenant(Base):
         "Route",
         back_populates="tenant",
         cascade="all, delete-orphan",
+    )
+    users: Mapped[list["User"]] = relationship(
+        "User",
+        back_populates="tenant",
     )
 
     def __repr__(self) -> str:
