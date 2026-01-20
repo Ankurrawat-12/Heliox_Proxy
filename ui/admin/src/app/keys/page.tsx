@@ -99,7 +99,7 @@ export default function ApiKeysPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (key: ApiKey) => getStatusBadge(key.status),
+      render: (key: ApiKey) => getStatusBadge(key.status || (key.is_active ? 'active' : 'disabled')),
     },
     {
       key: 'quotas',
@@ -127,15 +127,15 @@ export default function ApiKeysPage() {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              if (key.status === 'active') {
-                updateMutation.mutate({ id: key.id, data: { status: 'disabled' } })
+              if (key.is_active) {
+                updateMutation.mutate({ id: key.id, data: { is_active: false } })
               } else {
-                updateMutation.mutate({ id: key.id, data: { status: 'active' } })
+                updateMutation.mutate({ id: key.id, data: { is_active: true } })
               }
             }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-600"
           >
-            {key.status === 'active' ? 'Disable' : 'Enable'}
+            {key.is_active ? 'Disable' : 'Enable'}
           </button>
           <button
             onClick={(e) => {
