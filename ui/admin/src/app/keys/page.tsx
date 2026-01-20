@@ -7,6 +7,7 @@ import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import Badge from '@/components/Badge'
+import { useToast } from '@/components/Toast'
 import { Plus, Copy, RefreshCw, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -25,6 +26,7 @@ export default function ApiKeysPage() {
   })
   
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ['api-keys'],
@@ -41,14 +43,23 @@ export default function ApiKeysPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] })
       setCreatedKey(data.key || null)
+      showToast('API key created successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(`Failed to create key: ${error.message}`, 'error')
     },
   })
   
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<ApiKey> }) =>
       adminApi.updateKey(id, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      const action = variables.data.status === 'active' ? 'enabled' : 'disabled'
+      showToast(`API key ${action} successfully`, 'success')
+    },
+    onError: (error: Error) => {
+      showToast(`Failed to update key: ${error.message}`, 'error')
     },
   })
   
@@ -56,6 +67,10 @@ export default function ApiKeysPage() {
     mutationFn: adminApi.deleteKey,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] })
+      showToast('API key deleted successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(`Failed to delete key: ${error.message}`, 'error')
     },
   })
   
@@ -64,6 +79,10 @@ export default function ApiKeysPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] })
       setCreatedKey(data.key || null)
+      showToast('API key rotated successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(`Failed to rotate key: ${error.message}`, 'error')
     },
   })
   
@@ -132,15 +151,13 @@ export default function ApiKeysPage() {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              if (key.is_active) {
-                updateMutation.mutate({ id: key.id, data: { is_active: false } })
-              } else {
-                updateMutation.mutate({ id: key.id, data: { is_active: true } })
-              }
+              const newStatus = key.is_active ? 'disabled' : 'active'
+              updateMutation.mutate({ id: key.id, data: { status: newStatus } })
             }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-600"
+            disabled={updateMutation.isPending}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-sm text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {key.is_active ? 'Disable' : 'Enable'}
+            {updateMutation.isPending ? 'Updating...' : (key.is_active ? 'Disable' : 'Enable')}
           </button>
           <button
             onClick={(e) => {

@@ -4,6 +4,7 @@ import './globals.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 import Sidebar from '@/components/Sidebar'
+import { ToastProvider } from '@/components/Toast'
 
 export default function RootLayout({
   children,
@@ -23,12 +24,14 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-gray-50">
         <QueryClientProvider client={queryClient}>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 ml-64 p-8">
-              {children}
-            </main>
-          </div>
+          <ToastProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <main className="flex-1 ml-64 p-8">
+                {children}
+              </main>
+            </div>
+          </ToastProvider>
         </QueryClientProvider>
       </body>
     </html>
