@@ -96,6 +96,9 @@ export interface CachePolicy {
   vary_headers_json: string[]
   cacheable_methods: string[]
   cacheable_statuses_json: number[]
+  max_body_bytes?: number
+  cache_no_store?: boolean
+  route_count?: number
   created_at: string
 }
 
