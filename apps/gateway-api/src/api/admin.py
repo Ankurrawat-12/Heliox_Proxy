@@ -768,7 +768,11 @@ async def get_request_logs(
     if status_code:
         query = query.where(RequestLog.status_code == status_code)
     if cache_status:
-        query = query.where(RequestLog.cache_status == cache_status)
+        try:
+            cache_status_enum = CacheStatus(cache_status)
+            query = query.where(RequestLog.cache_status == cache_status_enum)
+        except ValueError:
+            pass  # Invalid cache_status value, skip filter
 
     # Get total count
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
@@ -800,6 +804,23 @@ async def get_request_logs(
             r_result = await db.execute(select(Route.name).where(Route.id == log.route_id))
             route_name = r_result.scalar()
 
+        # Safely get enum values with fallbacks
+        cache_status_val = "unknown"
+        if log.cache_status:
+            try:
+                cache_status_val = log.cache_status.value if hasattr(log.cache_status, 'value') else str(log.cache_status)
+            except Exception:
+                cache_status_val = "unknown"
+        
+        error_type_val = None
+        if log.error_type:
+            try:
+                err_val = log.error_type.value if hasattr(log.error_type, 'value') else str(log.error_type)
+                if err_val != "none":
+                    error_type_val = err_val
+            except Exception:
+                error_type_val = None
+        
         items.append(RequestLogItem(
             id=log.id,
             request_id=log.request_id,
@@ -814,8 +835,8 @@ async def get_request_logs(
             path=log.path,
             status_code=log.status_code,
             latency_ms=log.latency_ms,
-            cache_status=log.cache_status.value if log.cache_status else "unknown",
-            error_type=log.error_type.value if log.error_type and log.error_type.value != "none" else None,
+            cache_status=cache_status_val,
+            error_type=error_type_val,
             client_ip=log.client_ip,
         ))
 
