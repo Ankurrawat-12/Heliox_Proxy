@@ -134,8 +134,8 @@ export default function PoliciesPage() {
               stale_seconds: policy.stale_seconds,
               vary_headers_json: policy.vary_headers_json,
               cacheable_statuses_json: policy.cacheable_statuses_json,
-              max_body_bytes: policy.max_body_bytes,
-              cache_no_store: policy.cache_no_store,
+              max_body_bytes: policy.max_body_bytes ?? 10485760,
+              cache_no_store: policy.cache_no_store ?? false,
             })
           }}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
