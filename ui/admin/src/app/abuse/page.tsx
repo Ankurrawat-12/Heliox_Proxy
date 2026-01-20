@@ -1,13 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi, BlockRule } from '@/lib/api'
 import DataTable from '@/components/DataTable'
+import ConfirmModal from '@/components/ConfirmModal'
 import Badge from '@/components/Badge'
 import { format } from 'date-fns'
 import { Unlock, Shield } from 'lucide-react'
 
 export default function AbusePage() {
+  const [unblockKeyId, setUnblockKeyId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   
   const { data: blockedKeys = [], isLoading } = useQuery({
@@ -93,12 +96,7 @@ export default function AbusePage() {
       render: (rule: BlockRule) => (
         rule.is_active && (
           <button
-            onClick={() => {
-              const reason = prompt('Reason for unblocking:')
-              if (reason) {
-                unblockMutation.mutate({ apiKeyId: rule.api_key_id, reason })
-              }
-            }}
+            onClick={() => setUnblockKeyId(rule.api_key_id)}
             className="btn-secondary text-sm flex items-center space-x-1"
             disabled={unblockMutation.isPending}
           >
@@ -140,6 +138,26 @@ export default function AbusePage() {
         keyField="id"
         isLoading={isLoading}
         emptyMessage="No blocked API keys. All keys are operating normally."
+      />
+
+      {/* Unblock Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!unblockKeyId}
+        onClose={() => setUnblockKeyId(null)}
+        onConfirm={(reason) => {
+          if (unblockKeyId && reason) {
+            unblockMutation.mutate({ apiKeyId: unblockKeyId, reason })
+          }
+          setUnblockKeyId(null)
+        }}
+        title="Unblock API Key"
+        message="Please provide a reason for unblocking this API key."
+        confirmText="Unblock"
+        variant="info"
+        showInput
+        inputLabel="Reason"
+        inputPlaceholder="e.g., False positive, issue resolved"
+        isLoading={unblockMutation.isPending}
       />
     </div>
   )

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi, ApiKey, Tenant } from '@/lib/api'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
+import ConfirmModal from '@/components/ConfirmModal'
 import Badge from '@/components/Badge'
 import { Plus, Copy, RefreshCw, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -12,6 +13,10 @@ import { format } from 'date-fns'
 export default function ApiKeysPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'rotate' | 'delete' | null
+    keyId: string | null
+  }>({ type: null, keyId: null })
   const [formData, setFormData] = useState({
     tenant_id: '',
     name: '',
@@ -99,7 +104,7 @@ export default function ApiKeysPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (key: ApiKey) => getStatusBadge(key.is_active ? 'active' : 'disabled'),
+      render: (key: ApiKey) => getStatusBadge(key.status || (key.is_active ? 'active' : 'disabled')),
     },
     {
       key: 'quotas',
@@ -140,9 +145,7 @@ export default function ApiKeysPage() {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              if (confirm('Rotate this API key? The old key will stop working.')) {
-                rotateMutation.mutate(key.id)
-              }
+              setConfirmAction({ type: 'rotate', keyId: key.id })
             }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Rotate Key"
@@ -152,9 +155,7 @@ export default function ApiKeysPage() {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              if (confirm('Delete this API key? This cannot be undone.')) {
-                deleteMutation.mutate(key.id)
-              }
+              setConfirmAction({ type: 'delete', keyId: key.id })
             }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Delete"
@@ -304,6 +305,40 @@ export default function ApiKeysPage() {
           </form>
         )}
       </Modal>
+
+      {/* Rotate Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmAction.type === 'rotate'}
+        onClose={() => setConfirmAction({ type: null, keyId: null })}
+        onConfirm={() => {
+          if (confirmAction.keyId) {
+            rotateMutation.mutate(confirmAction.keyId)
+          }
+          setConfirmAction({ type: null, keyId: null })
+        }}
+        title="Rotate API Key"
+        message="Are you sure you want to rotate this API key? The old key will stop working immediately."
+        confirmText="Rotate Key"
+        variant="warning"
+        isLoading={rotateMutation.isPending}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmAction.type === 'delete'}
+        onClose={() => setConfirmAction({ type: null, keyId: null })}
+        onConfirm={() => {
+          if (confirmAction.keyId) {
+            deleteMutation.mutate(confirmAction.keyId)
+          }
+          setConfirmAction({ type: null, keyId: null })
+        }}
+        title="Delete API Key"
+        message="Are you sure you want to delete this API key? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   )
 }

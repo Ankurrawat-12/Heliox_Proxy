@@ -5,12 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi, Route, CachePolicy } from '@/lib/api'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
+import ConfirmModal from '@/components/ConfirmModal'
 import Badge from '@/components/Badge'
 import { Plus, Edit2, Trash2 } from 'lucide-react'
 
 export default function RoutesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingRoute, setEditingRoute] = useState<Route | null>(null)
+  const [deleteRouteId, setDeleteRouteId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     path_pattern: '/*',
@@ -147,9 +149,7 @@ export default function RoutesPage() {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              if (confirm('Delete this route?')) {
-                deleteMutation.mutate(route.id)
-              }
+              setDeleteRouteId(route.id)
             }}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
@@ -332,6 +332,23 @@ export default function RoutesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteRouteId}
+        onClose={() => setDeleteRouteId(null)}
+        onConfirm={() => {
+          if (deleteRouteId) {
+            deleteMutation.mutate(deleteRouteId)
+          }
+          setDeleteRouteId(null)
+        }}
+        title="Delete Route"
+        message="Are you sure you want to delete this route? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   )
 }
