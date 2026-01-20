@@ -14,10 +14,12 @@ import {
   BookOpen,
   Settings,
   X,
+  CreditCard,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Plans', href: '/plans', icon: CreditCard },
   { name: 'Tenants', href: '/tenants', icon: Users },
   { name: 'API Keys', href: '/keys', icon: Key },
   { name: 'Routes', href: '/routes', icon: Route },

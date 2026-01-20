@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from src.config import get_settings
 from src.database import get_db
-from src.models import ApiKey, BlockRule, CachePolicy, RequestLog, Route, Tenant
+from src.models import ApiKey, BlockRule, CachePolicy, Plan, RequestLog, Route, Tenant
 from src.models.api_key import ApiKeyStatus, generate_api_key
 from src.models.block_rule import BlockReason
 from src.models.request_log import CacheStatus
@@ -25,6 +25,10 @@ from src.schemas.admin import (
     CachePolicyUpdate,
     CachePurgeRequest,
     CachePurgeResponse,
+    PlanCreate,
+    PlanResponse,
+    PlanSummary,
+    PlanUpdate,
     RouteCreate,
     RouteResponse,
     RouteUpdate,
@@ -63,6 +67,261 @@ AdminDep = Depends(verify_admin_key)
 
 
 # =============================================================================
+# PLAN ENDPOINTS
+# =============================================================================
+
+
+@router.get("/plans", response_model=list[PlanResponse], dependencies=[AdminDep])
+async def list_plans(
+    db: AsyncSession = Depends(get_db),
+    include_inactive: bool = Query(False),
+) -> list[PlanResponse]:
+    """List all subscription plans."""
+    query = select(Plan)
+    if not include_inactive:
+        query = query.where(Plan.is_active == True)
+    query = query.order_by(Plan.price_monthly_cents.asc())
+    
+    result = await db.execute(query)
+    plans = result.scalars().all()
+    
+    response = []
+    for plan in plans:
+        # Count tenants on this plan
+        count_result = await db.execute(
+            select(func.count(Tenant.id)).where(Tenant.plan_id == plan.id)
+        )
+        tenant_count = count_result.scalar() or 0
+        
+        response.append(PlanResponse(
+            id=plan.id,
+            name=plan.name,
+            tier=plan.tier.value if hasattr(plan.tier, 'value') else str(plan.tier),
+            description=plan.description,
+            price_monthly_cents=plan.price_monthly_cents,
+            quota_daily=plan.quota_daily,
+            quota_monthly=plan.quota_monthly,
+            rate_limit_rps=plan.rate_limit_rps,
+            rate_limit_burst=plan.rate_limit_burst,
+            max_api_keys=plan.max_api_keys,
+            max_routes=plan.max_routes,
+            cache_enabled=plan.cache_enabled,
+            analytics_enabled=plan.analytics_enabled,
+            priority_support=plan.priority_support,
+            custom_domains=plan.custom_domains,
+            is_active=plan.is_active,
+            is_default=plan.is_default,
+            created_at=plan.created_at,
+            updated_at=plan.updated_at,
+            tenant_count=tenant_count,
+        ))
+    
+    return response
+
+
+@router.get("/plans/{plan_id}", response_model=PlanResponse, dependencies=[AdminDep])
+async def get_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> PlanResponse:
+    """Get a specific plan by ID."""
+    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    # Count tenants on this plan
+    count_result = await db.execute(
+        select(func.count(Tenant.id)).where(Tenant.plan_id == plan.id)
+    )
+    tenant_count = count_result.scalar() or 0
+    
+    return PlanResponse(
+        id=plan.id,
+        name=plan.name,
+        tier=plan.tier.value if hasattr(plan.tier, 'value') else str(plan.tier),
+        description=plan.description,
+        price_monthly_cents=plan.price_monthly_cents,
+        quota_daily=plan.quota_daily,
+        quota_monthly=plan.quota_monthly,
+        rate_limit_rps=plan.rate_limit_rps,
+        rate_limit_burst=plan.rate_limit_burst,
+        max_api_keys=plan.max_api_keys,
+        max_routes=plan.max_routes,
+        cache_enabled=plan.cache_enabled,
+        analytics_enabled=plan.analytics_enabled,
+        priority_support=plan.priority_support,
+        custom_domains=plan.custom_domains,
+        is_active=plan.is_active,
+        is_default=plan.is_default,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+        tenant_count=tenant_count,
+    )
+
+
+@router.post("/plans", response_model=PlanResponse, dependencies=[AdminDep])
+async def create_plan(
+    data: PlanCreate,
+    db: AsyncSession = Depends(get_db),
+) -> PlanResponse:
+    """Create a new subscription plan."""
+    from src.models.plan import PlanTier
+    
+    # Check if plan name already exists
+    existing = await db.execute(select(Plan).where(Plan.name == data.name))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Plan with this name already exists")
+    
+    # If this is set as default, unset other defaults
+    if data.is_default:
+        await db.execute(
+            select(Plan).where(Plan.is_default == True)
+        )
+        result = await db.execute(select(Plan).where(Plan.is_default == True))
+        for plan in result.scalars().all():
+            plan.is_default = False
+    
+    plan = Plan(
+        name=data.name,
+        tier=PlanTier(data.tier),
+        description=data.description,
+        price_monthly_cents=data.price_monthly_cents,
+        quota_daily=data.quota_daily,
+        quota_monthly=data.quota_monthly,
+        rate_limit_rps=data.rate_limit_rps,
+        rate_limit_burst=data.rate_limit_burst,
+        max_api_keys=data.max_api_keys,
+        max_routes=data.max_routes,
+        cache_enabled=data.cache_enabled,
+        analytics_enabled=data.analytics_enabled,
+        priority_support=data.priority_support,
+        custom_domains=data.custom_domains,
+        is_default=data.is_default,
+    )
+    db.add(plan)
+    await db.flush()
+    
+    return PlanResponse(
+        id=plan.id,
+        name=plan.name,
+        tier=plan.tier.value,
+        description=plan.description,
+        price_monthly_cents=plan.price_monthly_cents,
+        quota_daily=plan.quota_daily,
+        quota_monthly=plan.quota_monthly,
+        rate_limit_rps=plan.rate_limit_rps,
+        rate_limit_burst=plan.rate_limit_burst,
+        max_api_keys=plan.max_api_keys,
+        max_routes=plan.max_routes,
+        cache_enabled=plan.cache_enabled,
+        analytics_enabled=plan.analytics_enabled,
+        priority_support=plan.priority_support,
+        custom_domains=plan.custom_domains,
+        is_active=plan.is_active,
+        is_default=plan.is_default,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+        tenant_count=0,
+    )
+
+
+@router.patch("/plans/{plan_id}", response_model=PlanResponse, dependencies=[AdminDep])
+async def update_plan(
+    plan_id: str,
+    data: PlanUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> PlanResponse:
+    """Update a subscription plan."""
+    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    # If setting as default, unset others
+    if data.is_default:
+        other_defaults = await db.execute(
+            select(Plan).where(Plan.is_default == True).where(Plan.id != plan_id)
+        )
+        for other in other_defaults.scalars().all():
+            other.is_default = False
+    
+    # Update fields
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(plan, field, value)
+    
+    await db.flush()
+    
+    # Count tenants
+    count_result = await db.execute(
+        select(func.count(Tenant.id)).where(Tenant.plan_id == plan.id)
+    )
+    tenant_count = count_result.scalar() or 0
+    
+    return PlanResponse(
+        id=plan.id,
+        name=plan.name,
+        tier=plan.tier.value if hasattr(plan.tier, 'value') else str(plan.tier),
+        description=plan.description,
+        price_monthly_cents=plan.price_monthly_cents,
+        quota_daily=plan.quota_daily,
+        quota_monthly=plan.quota_monthly,
+        rate_limit_rps=plan.rate_limit_rps,
+        rate_limit_burst=plan.rate_limit_burst,
+        max_api_keys=plan.max_api_keys,
+        max_routes=plan.max_routes,
+        cache_enabled=plan.cache_enabled,
+        analytics_enabled=plan.analytics_enabled,
+        priority_support=plan.priority_support,
+        custom_domains=plan.custom_domains,
+        is_active=plan.is_active,
+        is_default=plan.is_default,
+        created_at=plan.created_at,
+        updated_at=plan.updated_at,
+        tenant_count=tenant_count,
+    )
+
+
+@router.delete("/plans/{plan_id}", dependencies=[AdminDep])
+async def delete_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Delete a plan (only if no tenants are using it)."""
+    result = await db.execute(select(Plan).where(Plan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    # Check if any tenants are using this plan
+    count_result = await db.execute(
+        select(func.count(Tenant.id)).where(Tenant.plan_id == plan_id)
+    )
+    tenant_count = count_result.scalar() or 0
+    
+    if tenant_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete plan: {tenant_count} tenant(s) are using it"
+        )
+    
+    if plan.is_default:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete the default plan"
+        )
+    
+    await db.delete(plan)
+    await db.flush()
+    
+    return {"message": "Plan deleted successfully"}
+
+
+# =============================================================================
 # TENANT ENDPOINTS
 # =============================================================================
 
@@ -78,14 +337,41 @@ async def create_tenant(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Tenant name already exists")
 
-    tenant = Tenant(name=data.name, description=data.description)
+    # Get plan_id - use provided or default
+    plan_id = data.plan_id
+    if not plan_id:
+        # Get default plan
+        default_plan = await db.execute(select(Plan).where(Plan.is_default == True))
+        plan = default_plan.scalar_one_or_none()
+        if plan:
+            plan_id = plan.id
+
+    tenant = Tenant(
+        name=data.name, 
+        description=data.description,
+        plan_id=plan_id,
+    )
     db.add(tenant)
     await db.flush()
+    
+    # Get plan info for response
+    plan_summary = None
+    if tenant.plan_id:
+        plan_result = await db.execute(select(Plan).where(Plan.id == tenant.plan_id))
+        plan = plan_result.scalar_one_or_none()
+        if plan:
+            plan_summary = PlanSummary(
+                id=plan.id,
+                name=plan.name,
+                tier=plan.tier.value if hasattr(plan.tier, 'value') else str(plan.tier),
+            )
 
     return TenantResponse(
         id=tenant.id,
         name=tenant.name,
         description=tenant.description,
+        plan_id=tenant.plan_id,
+        plan=plan_summary,
         is_active=tenant.is_active,
         created_at=tenant.created_at,
         updated_at=tenant.updated_at,
@@ -101,26 +387,41 @@ async def list_tenants(
     """List all tenants."""
     result = await db.execute(
         select(Tenant)
-        .options(selectinload(Tenant.api_keys), selectinload(Tenant.routes))
+        .options(
+            selectinload(Tenant.api_keys), 
+            selectinload(Tenant.routes),
+            selectinload(Tenant.plan),
+        )
         .offset(skip)
         .limit(limit)
         .order_by(Tenant.created_at.desc())
     )
     tenants = result.scalars().all()
 
-    return [
-        TenantResponse(
+    response = []
+    for t in tenants:
+        plan_summary = None
+        if t.plan:
+            plan_summary = PlanSummary(
+                id=t.plan.id,
+                name=t.plan.name,
+                tier=t.plan.tier.value if hasattr(t.plan.tier, 'value') else str(t.plan.tier),
+            )
+        
+        response.append(TenantResponse(
             id=t.id,
             name=t.name,
             description=t.description,
+            plan_id=t.plan_id,
+            plan=plan_summary,
             is_active=t.is_active,
             created_at=t.created_at,
             updated_at=t.updated_at,
             api_key_count=len(t.api_keys),
             route_count=len(t.routes),
-        )
-        for t in tenants
-    ]
+        ))
+    
+    return response
 
 
 @router.get("/tenants/{tenant_id}", response_model=TenantResponse, dependencies=[AdminDep])
@@ -131,7 +432,11 @@ async def get_tenant(
     """Get a tenant by ID."""
     result = await db.execute(
         select(Tenant)
-        .options(selectinload(Tenant.api_keys), selectinload(Tenant.routes))
+        .options(
+            selectinload(Tenant.api_keys), 
+            selectinload(Tenant.routes),
+            selectinload(Tenant.plan),
+        )
         .where(Tenant.id == tenant_id)
     )
     tenant = result.scalar_one_or_none()
@@ -139,10 +444,20 @@ async def get_tenant(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
+    plan_summary = None
+    if tenant.plan:
+        plan_summary = PlanSummary(
+            id=tenant.plan.id,
+            name=tenant.plan.name,
+            tier=tenant.plan.tier.value if hasattr(tenant.plan.tier, 'value') else str(tenant.plan.tier),
+        )
+
     return TenantResponse(
         id=tenant.id,
         name=tenant.name,
         description=tenant.description,
+        plan_id=tenant.plan_id,
+        plan=plan_summary,
         is_active=tenant.is_active,
         created_at=tenant.created_at,
         updated_at=tenant.updated_at,
@@ -158,7 +473,14 @@ async def update_tenant(
     db: AsyncSession = Depends(get_db),
 ) -> TenantResponse:
     """Update a tenant."""
-    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    result = await db.execute(
+        select(Tenant)
+        .options(
+            selectinload(Tenant.api_keys),
+            selectinload(Tenant.routes),
+        )
+        .where(Tenant.id == tenant_id)
+    )
     tenant = result.scalar_one_or_none()
 
     if not tenant:
@@ -168,18 +490,40 @@ async def update_tenant(
         tenant.name = data.name
     if data.description is not None:
         tenant.description = data.description
+    if data.plan_id is not None:
+        # Verify plan exists
+        plan_check = await db.execute(select(Plan).where(Plan.id == data.plan_id))
+        if not plan_check.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Plan not found")
+        tenant.plan_id = data.plan_id
     if data.is_active is not None:
         tenant.is_active = data.is_active
 
     await db.flush()
+    
+    # Get plan info for response
+    plan_summary = None
+    if tenant.plan_id:
+        plan_result = await db.execute(select(Plan).where(Plan.id == tenant.plan_id))
+        plan = plan_result.scalar_one_or_none()
+        if plan:
+            plan_summary = PlanSummary(
+                id=plan.id,
+                name=plan.name,
+                tier=plan.tier.value if hasattr(plan.tier, 'value') else str(plan.tier),
+            )
 
     return TenantResponse(
         id=tenant.id,
         name=tenant.name,
         description=tenant.description,
+        plan_id=tenant.plan_id,
+        plan=plan_summary,
         is_active=tenant.is_active,
         created_at=tenant.created_at,
         updated_at=tenant.updated_at,
+        api_key_count=len(tenant.api_keys),
+        route_count=len(tenant.routes),
     )
 
 
@@ -194,11 +538,57 @@ async def create_api_key(
     db: AsyncSession = Depends(get_db),
 ) -> ApiKeyResponse:
     """Create a new API key."""
-    # Verify tenant exists
-    result = await db.execute(select(Tenant).where(Tenant.id == data.tenant_id))
+    # Verify tenant exists and get plan
+    result = await db.execute(
+        select(Tenant)
+        .options(selectinload(Tenant.plan))
+        .where(Tenant.id == data.tenant_id)
+    )
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Check plan limits for API keys
+    if tenant.plan and tenant.plan.max_api_keys > 0:
+        # Count existing API keys for this tenant
+        count_result = await db.execute(
+            select(func.count(ApiKey.id)).where(ApiKey.tenant_id == tenant.id)
+        )
+        current_count = count_result.scalar() or 0
+        
+        if current_count >= tenant.plan.max_api_keys:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Plan limit reached: {tenant.plan.name} plan allows max {tenant.plan.max_api_keys} API keys. Upgrade to create more."
+            )
+    
+    # Apply plan-based defaults if not specified
+    quota_daily = data.quota_daily
+    quota_monthly = data.quota_monthly
+    rate_limit_rps = data.rate_limit_rps
+    rate_limit_burst = data.rate_limit_burst
+    
+    if tenant.plan:
+        # Use plan limits as maximums/defaults
+        if quota_daily == 0:
+            quota_daily = tenant.plan.quota_daily
+        elif tenant.plan.quota_daily > 0:
+            quota_daily = min(quota_daily, tenant.plan.quota_daily)
+        
+        if quota_monthly == 0:
+            quota_monthly = tenant.plan.quota_monthly
+        elif tenant.plan.quota_monthly > 0:
+            quota_monthly = min(quota_monthly, tenant.plan.quota_monthly)
+        
+        if rate_limit_rps is None:
+            rate_limit_rps = tenant.plan.rate_limit_rps
+        else:
+            rate_limit_rps = min(rate_limit_rps, tenant.plan.rate_limit_rps)
+        
+        if rate_limit_burst is None:
+            rate_limit_burst = tenant.plan.rate_limit_burst
+        else:
+            rate_limit_burst = min(rate_limit_burst, tenant.plan.rate_limit_burst)
 
     # Generate key
     key = generate_api_key()
@@ -208,10 +598,10 @@ async def create_api_key(
         name=data.name,
         key=key,
         key_prefix=key[:10],
-        quota_daily=data.quota_daily,
-        quota_monthly=data.quota_monthly,
-        rate_limit_rps=data.rate_limit_rps,
-        rate_limit_burst=data.rate_limit_burst,
+        quota_daily=quota_daily,
+        quota_monthly=quota_monthly,
+        rate_limit_rps=rate_limit_rps,
+        rate_limit_burst=rate_limit_burst,
         expires_at=data.expires_at,
     )
     db.add(api_key)
@@ -352,11 +742,29 @@ async def create_route(
     db: AsyncSession = Depends(get_db),
 ) -> RouteResponse:
     """Create a new route."""
-    # Verify tenant if provided
+    # Verify tenant if provided and check plan limits
     if data.tenant_id:
-        result = await db.execute(select(Tenant).where(Tenant.id == data.tenant_id))
-        if not result.scalar_one_or_none():
+        result = await db.execute(
+            select(Tenant)
+            .options(selectinload(Tenant.plan))
+            .where(Tenant.id == data.tenant_id)
+        )
+        tenant = result.scalar_one_or_none()
+        if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
+        
+        # Check plan limits for routes
+        if tenant.plan and tenant.plan.max_routes > 0:
+            count_result = await db.execute(
+                select(func.count(Route.id)).where(Route.tenant_id == tenant.id)
+            )
+            current_count = count_result.scalar() or 0
+            
+            if current_count >= tenant.plan.max_routes:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Plan limit reached: {tenant.plan.name} plan allows max {tenant.plan.max_routes} routes. Upgrade to create more."
+                )
 
     # Verify policy if provided
     if data.policy_id:

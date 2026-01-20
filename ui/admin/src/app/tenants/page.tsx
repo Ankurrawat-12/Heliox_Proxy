@@ -2,17 +2,19 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminApi, Tenant } from '@/lib/api'
+import { adminApi, Tenant, Plan } from '@/lib/api'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import Badge from '@/components/Badge'
-import { Plus, Edit2 } from 'lucide-react'
+import { useToast } from '@/components/Toast'
+import { Plus, Edit2, Crown, Zap, Building2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function TenantsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
-  const [formData, setFormData] = useState({ name: '', description: '' })
+  const [formData, setFormData] = useState({ name: '', description: '', plan_id: '' })
+  const { showToast } = useToast()
   
   const queryClient = useQueryClient()
   
@@ -21,12 +23,21 @@ export default function TenantsPage() {
     queryFn: adminApi.getTenants,
   })
   
+  const { data: plans = [] } = useQuery({
+    queryKey: ['plans'],
+    queryFn: adminApi.getPlans,
+  })
+  
   const createMutation = useMutation({
     mutationFn: adminApi.createTenant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       setIsCreateOpen(false)
-      setFormData({ name: '', description: '' })
+      setFormData({ name: '', description: '', plan_id: '' })
+      showToast('Tenant created successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(error.message, 'error')
     },
   })
   
@@ -36,8 +47,40 @@ export default function TenantsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       setEditingTenant(null)
+      showToast('Tenant updated successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(error.message, 'error')
     },
   })
+  
+  const getTierIcon = (tier?: string) => {
+    switch (tier) {
+      case 'free': return <Zap className="w-3 h-3" />
+      case 'pro': return <Crown className="w-3 h-3" />
+      case 'enterprise': return <Building2 className="w-3 h-3" />
+      default: return null
+    }
+  }
+  
+  const getTierBadge = (plan?: { name: string; tier: string }) => {
+    if (!plan) return <Badge size="sm">No Plan</Badge>
+    
+    const variants: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
+      free: 'success',
+      pro: 'warning',
+      enterprise: 'error',
+      custom: 'info',
+    }
+    return (
+      <Badge variant={variants[plan.tier] || 'info'} size="sm">
+        <span className="flex items-center gap-1">
+          {getTierIcon(plan.tier)}
+          {plan.name}
+        </span>
+      </Badge>
+    )
+  }
   
   const columns = [
     {
@@ -51,6 +94,11 @@ export default function TenantsPage() {
           )}
         </div>
       ),
+    },
+    {
+      key: 'plan',
+      header: 'Plan',
+      render: (tenant: Tenant) => getTierBadge(tenant.plan),
     },
     {
       key: 'is_active',
@@ -84,7 +132,11 @@ export default function TenantsPage() {
           onClick={(e) => {
             e.stopPropagation()
             setEditingTenant(tenant)
-            setFormData({ name: tenant.name, description: tenant.description || '' })
+            setFormData({ 
+              name: tenant.name, 
+              description: tenant.description || '',
+              plan_id: tenant.plan_id || '',
+            })
           }}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
@@ -96,10 +148,14 @@ export default function TenantsPage() {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const data = {
+      ...formData,
+      plan_id: formData.plan_id || undefined,
+    }
     if (editingTenant) {
-      updateMutation.mutate({ id: editingTenant.id, data: formData })
+      updateMutation.mutate({ id: editingTenant.id, data })
     } else {
-      createMutation.mutate(formData)
+      createMutation.mutate(data)
     }
   }
   
@@ -180,6 +236,30 @@ export default function TenantsPage() {
               rows={3}
               placeholder="Optional description..."
             />
+          </div>
+          <div>
+            <label className="label">Subscription Plan</label>
+            <select
+              value={formData.plan_id}
+              onChange={(e) => setFormData({ ...formData, plan_id: e.target.value })}
+              className="input"
+            >
+              <option value="">Default (Free)</option>
+              {plans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name} - ${(plan.price_monthly_cents / 100).toFixed(2)}/mo
+                  {plan.is_default && ' (Default)'}
+                </option>
+              ))}
+            </select>
+            {formData.plan_id && plans.find(p => p.id === formData.plan_id) && (
+              <p className="text-sm text-gray-500 mt-1">
+                {(() => {
+                  const plan = plans.find(p => p.id === formData.plan_id)!
+                  return `${plan.quota_daily === 0 ? '∞' : plan.quota_daily.toLocaleString()} req/day • ${plan.max_api_keys === 0 ? '∞' : plan.max_api_keys} keys • ${plan.max_routes === 0 ? '∞' : plan.max_routes} routes`
+                })()}
+              </p>
+            )}
           </div>
           {editingTenant && (
             <div>

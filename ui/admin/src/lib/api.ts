@@ -40,10 +40,41 @@ async function fetchApi<T>(
 }
 
 // Types
+export interface Plan {
+  id: string
+  name: string
+  tier: 'free' | 'pro' | 'enterprise' | 'custom'
+  description?: string
+  price_monthly_cents: number
+  quota_daily: number
+  quota_monthly: number
+  rate_limit_rps: number
+  rate_limit_burst: number
+  max_api_keys: number
+  max_routes: number
+  cache_enabled: boolean
+  analytics_enabled: boolean
+  priority_support: boolean
+  custom_domains: boolean
+  is_active: boolean
+  is_default: boolean
+  created_at: string
+  updated_at: string
+  tenant_count?: number
+}
+
+export interface PlanSummary {
+  id: string
+  name: string
+  tier: string
+}
+
 export interface Tenant {
   id: string
   name: string
   description: string
+  plan_id?: string
+  plan?: PlanSummary
   is_active: boolean
   created_at: string
   updated_at: string
@@ -182,6 +213,35 @@ export const adminApi = {
   getHealth: async (): Promise<HealthStatus> => {
     const response = await fetch(`${API_URL}/health`)
     return response.json()
+  },
+
+  // Plans
+  getPlans: async (): Promise<Plan[]> => {
+    return fetchApi('/admin/plans')
+  },
+
+  getPlan: async (id: string): Promise<Plan> => {
+    return fetchApi(`/admin/plans/${id}`)
+  },
+
+  createPlan: async (data: Partial<Plan>): Promise<Plan> => {
+    return fetchApi('/admin/plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  updatePlan: async (id: string, data: Partial<Plan>): Promise<Plan> => {
+    return fetchApi(`/admin/plans/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+
+  deletePlan: async (id: string): Promise<void> => {
+    return fetchApi(`/admin/plans/${id}`, {
+      method: 'DELETE',
+    })
   },
 
   // Analytics

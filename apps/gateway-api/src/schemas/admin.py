@@ -6,6 +6,79 @@ from pydantic import BaseModel, Field, field_validator
 
 
 # =============================================================================
+# PLAN SCHEMAS
+# =============================================================================
+
+
+class PlanBase(BaseModel):
+    """Base plan fields."""
+    
+    name: str = Field(..., min_length=1, max_length=100, description="Plan name")
+    tier: str = Field("free", description="Plan tier: free, pro, enterprise, custom")
+    description: str | None = Field(None, max_length=500)
+    price_monthly_cents: int = Field(0, ge=0, description="Monthly price in cents")
+    quota_daily: int = Field(1000, ge=0, description="Daily request quota (0=unlimited)")
+    quota_monthly: int = Field(10000, ge=0, description="Monthly request quota (0=unlimited)")
+    rate_limit_rps: float = Field(10.0, ge=0.1, le=10000, description="Requests per second")
+    rate_limit_burst: int = Field(20, ge=1, le=100000, description="Burst limit")
+    max_api_keys: int = Field(2, ge=0, description="Max API keys (0=unlimited)")
+    max_routes: int = Field(5, ge=0, description="Max routes (0=unlimited)")
+    cache_enabled: bool = Field(True, description="Cache feature enabled")
+    analytics_enabled: bool = Field(False, description="Analytics feature enabled")
+    priority_support: bool = Field(False, description="Priority support enabled")
+    custom_domains: bool = Field(False, description="Custom domains enabled")
+
+
+class PlanCreate(PlanBase):
+    """Schema for creating a plan."""
+    
+    is_default: bool = Field(False, description="Make this the default plan")
+
+
+class PlanUpdate(BaseModel):
+    """Schema for updating a plan."""
+    
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
+    price_monthly_cents: int | None = Field(None, ge=0)
+    quota_daily: int | None = Field(None, ge=0)
+    quota_monthly: int | None = Field(None, ge=0)
+    rate_limit_rps: float | None = Field(None, ge=0.1, le=10000)
+    rate_limit_burst: int | None = Field(None, ge=1, le=100000)
+    max_api_keys: int | None = Field(None, ge=0)
+    max_routes: int | None = Field(None, ge=0)
+    cache_enabled: bool | None = None
+    analytics_enabled: bool | None = None
+    priority_support: bool | None = None
+    custom_domains: bool | None = None
+    is_active: bool | None = None
+    is_default: bool | None = None
+
+
+class PlanResponse(PlanBase):
+    """Plan response schema."""
+    
+    id: str
+    is_active: bool
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+    tenant_count: int = 0
+    
+    model_config = {"from_attributes": True}
+
+
+class PlanSummary(BaseModel):
+    """Brief plan info for embedding in other responses."""
+    
+    id: str
+    name: str
+    tier: str
+    
+    model_config = {"from_attributes": True}
+
+
+# =============================================================================
 # TENANT SCHEMAS
 # =============================================================================
 
@@ -19,8 +92,8 @@ class TenantBase(BaseModel):
 
 class TenantCreate(TenantBase):
     """Schema for creating a tenant."""
-
-    pass
+    
+    plan_id: str | None = Field(None, description="Plan ID (uses default if not provided)")
 
 
 class TenantUpdate(BaseModel):
@@ -28,6 +101,7 @@ class TenantUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=1000)
+    plan_id: str | None = Field(None, description="Plan ID to assign")
     is_active: bool | None = None
 
 
@@ -35,6 +109,8 @@ class TenantResponse(TenantBase):
     """Tenant response schema."""
 
     id: str
+    plan_id: str | None
+    plan: PlanSummary | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
