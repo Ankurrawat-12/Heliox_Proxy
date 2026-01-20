@@ -151,7 +151,24 @@ export interface RequestLog {
   status_code: number
   latency_ms: number
   cache_status: string
+  timestamp: string
   created_at: string
+  api_key_name?: string
+  route_name?: string
+}
+
+export interface PaginatedLogs {
+  items: RequestLog[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface LogFilters {
+  page?: number
+  page_size?: number
+  status_code?: string
+  cache_status?: string
 }
 
 // Admin API
@@ -179,8 +196,13 @@ export const adminApi = {
     return fetchApi(`/admin/analytics/cache-hit-rate?hours=${hours}`)
   },
 
-  getLogs: async (limit: number = 100, offset: number = 0): Promise<RequestLog[]> => {
-    return fetchApi(`/admin/analytics/logs?limit=${limit}&offset=${offset}`)
+  getLogs: async (filters: LogFilters = {}): Promise<PaginatedLogs> => {
+    const params = new URLSearchParams()
+    if (filters.page) params.append('page', String(filters.page))
+    if (filters.page_size) params.append('page_size', String(filters.page_size))
+    if (filters.status_code) params.append('status_code', filters.status_code)
+    if (filters.cache_status) params.append('cache_status', filters.cache_status)
+    return fetchApi(`/admin/analytics/logs?${params.toString()}`)
   },
 
   // Tenants
