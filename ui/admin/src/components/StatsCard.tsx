@@ -32,15 +32,15 @@ export default function StatsCard({
   return (
     <div className="card">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs sm:text-sm font-medium text-gray-500">{title}</p>
+          <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-semibold text-gray-900 truncate">{value}</p>
           {subtitle && (
-            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 truncate">{subtitle}</p>
           )}
           {trend && (
             <p className={clsx(
-              'mt-2 text-sm font-medium',
+              'mt-2 text-xs sm:text-sm font-medium',
               trend.isPositive ? 'text-green-600' : 'text-red-600'
             )}>
               {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
@@ -48,8 +48,8 @@ export default function StatsCard({
             </p>
           )}
         </div>
-        <div className={clsx('p-3 rounded-lg', colorClasses[color])}>
-          <Icon className="w-6 h-6" />
+        <div className={clsx('p-2 sm:p-3 rounded-lg flex-shrink-0', colorClasses[color])}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
       </div>
     </div>
