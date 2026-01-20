@@ -168,7 +168,7 @@ export default function TenantsPage() {
         </div>
         <button
           onClick={() => {
-            setFormData({ name: '', description: '' })
+            setFormData({ name: '', description: '', plan_id: '' })
             setIsCreateOpen(true)
           }}
           className="btn-primary flex items-center space-x-2"
