@@ -68,7 +68,7 @@ export default function RoutesPage() {
     })
   }
   
-  const getPolicyName = (policyId: string | null) => {
+  const getPolicyName = (policyId: string | undefined) => {
     if (!policyId) return 'None'
     const policy = policies.find(p => p.id === policyId)
     return policy?.name || 'Unknown'
@@ -164,7 +164,7 @@ export default function RoutesPage() {
     e.preventDefault()
     const data = {
       ...formData,
-      policy_id: formData.policy_id || null,
+      policy_id: formData.policy_id || undefined,
     }
     if (editingRoute) {
       updateMutation.mutate({ id: editingRoute.id, data })

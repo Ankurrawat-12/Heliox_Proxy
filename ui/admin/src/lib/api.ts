@@ -74,7 +74,7 @@ export interface ApiKey {
 export interface Route {
   id: string
   tenant_id?: string
-  policy_id: string
+  policy_id?: string
   name: string
   description: string
   path_pattern: string
