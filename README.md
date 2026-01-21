@@ -1,627 +1,407 @@
-# Heliox Proxy
+# 🚀 Heliox Proxy
 
-A **production-grade API Gateway + Caching Proxy** built with Python, FastAPI, Redis, and PostgreSQL. Features real-time admin UI, Redis caching with SWR, stampede protection, request deduplication, and abuse controls.
+<div align="center">
 
-![Architecture](https://img.shields.io/badge/Architecture-Microservices-blue)
-![Python](https://img.shields.io/badge/Python-3.11+-green)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![Heliox Logo](https://img.shields.io/badge/Heliox-API%20Gateway-6366f1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTEzIDJMMyAxNGgxMGwtMSAxMCAxMC0xMkgxMmwxLTEweiIvPjwvc3ZnPg==)
 
-## Features
+**A modern, high-performance API Gateway with intelligent caching, rate limiting, and analytics.**
 
-### Core Gateway
-- **Configurable Routing**: Path patterns map to upstream services
-- **Per-tenant API Keys**: Quotas and rate limits per route
-- **Response Caching**: TTL + Stale-While-Revalidate (SWR)
-- **Stampede Protection**: Redis locks prevent cache stampedes
-- **Request Coalescing**: Deduplicate in-flight requests
+[![Live Demo](https://img.shields.io/badge/🌐_Gateway-Live-success?style=flat-square)](https://heliox-gateway.onrender.com)
+[![Admin Panel](https://img.shields.io/badge/🔧_Admin-Panel-blue?style=flat-square)](https://heliox-proxy.vercel.app)
+[![Customer Portal](https://img.shields.io/badge/👤_Customer-Portal-purple?style=flat-square)](https://heliox-portal.vercel.app)
 
-### Advanced Features
-- **Bloom Filter**: Negative caching for 404-heavy paths
-- **Abuse Detection**: EWMA/Z-score anomaly detection with soft blocks
-- **Rate Limiting**: Token bucket and sliding window algorithms
-- **Quota Management**: Daily and monthly usage quotas
-
-### Admin UI
-- Dashboard with real-time metrics
-- Tenant and API key management
-- Route and cache policy configuration
-- Live request logs
-- Abuse monitoring and unblock actions
+</div>
 
 ---
 
-## Architecture
+## 🌐 Live Deployment
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              Client Request                              │
-└─────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           Heliox Gateway                                 │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────────┐  │
-│  │ Auth Layer  │──│ Rate Limiter │──│ Cache Check │──│ Abuse Check  │  │
-│  └─────────────┘  └──────────────┘  └─────────────┘  └──────────────┘  │
-│         │                 │                │                 │          │
-│         ▼                 ▼                ▼                 ▼          │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                       Request Router                             │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-         │                                          │
-         ▼                                          ▼
-┌─────────────────┐                      ┌─────────────────┐
-│      Redis      │                      │   PostgreSQL    │
-│  - Cache Store  │                      │  - Config Data  │
-│  - Rate Limits  │                      │  - Request Logs │
-│  - Bloom Filter │                      │  - Tenants/Keys │
-│  - Locks        │                      └─────────────────┘
-└─────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Upstream Services                               │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Request Flow
-
-1. **Authentication**: Validate API key from `X-API-Key` header
-2. **Rate Limiting**: Check token bucket / sliding window limits
-3. **Quota Check**: Verify daily/monthly quotas
-4. **Abuse Check**: Verify key isn't blocked by anomaly detection
-5. **Route Match**: Find matching route configuration
-6. **Cache Lookup**:
-   - **HIT**: Return cached response immediately
-   - **STALE**: Return stale + enqueue background refresh (SWR)
-   - **MISS**: Fetch from upstream with coalescing
-7. **Response**: Return to client with cache headers
+| Service | URL |
+|---------|-----|
+| **API Gateway** | https://heliox-gateway.onrender.com |
+| **Admin Panel** | https://heliox-proxy.vercel.app |
+| **Customer Portal** | https://heliox-portal.vercel.app |
+| **API Documentation** | https://heliox-gateway.onrender.com/docs |
 
 ---
 
-## Caching + SWR Explanation
+## ✨ Features
 
-### Stale-While-Revalidate (SWR)
+### 🔐 API Key Management
+- Generate and manage API keys per tenant
+- Key rotation and revocation
+- Usage quotas (daily/monthly limits)
+- Key prefixes for easy identification
 
-SWR improves latency by serving stale cached data while refreshing in the background:
+### ⚡ Intelligent Caching
+- Response caching with configurable TTL
+- Cache policies per route
+- Cache hit/miss analytics
+- Automatic cache invalidation
+
+### 🛡️ Rate Limiting
+- Per-key rate limiting (requests per second)
+- Burst allowance configuration
+- Token bucket algorithm
+- Real-time quota tracking
+
+### 📊 Analytics & Monitoring
+- Real-time request logging
+- Latency tracking
+- Error rate monitoring
+- Cache performance metrics
+- Usage dashboards
+
+### 🚨 Abuse Detection
+- Anomaly detection using EWMA + Z-score
+- Automatic key blocking
+- Bloom filter for 404 caching
+- IP-based tracking
+
+### 💳 Multi-Tenant Architecture
+- Isolated tenants with dedicated resources
+- Subscription plans (Free, Pro, Enterprise)
+- Per-tenant quotas and limits
+- Role-based access control
+
+---
+
+## 🏗️ Architecture
 
 ```
-Time ────────────────────────────────────────────────────────────────────►
-
-│◄─────── TTL (Fresh) ───────►│◄─── Stale Window ───►│◄─── Expired ───►
-
-     Request 1: Cache MISS     Request 2: Cache HIT
-     (fetches from upstream)   (instant response)
-
-                                    Request 3: STALE
-                                    (instant stale response)
-                                    (background refresh starts)
-
-                                                           Request 4: HIT
-                                                           (fresh from refresh)
-```
-
-**Benefits**:
-- Users get instant responses even after TTL expires
-- Background refresh happens transparently
-- Reduces perceived latency significantly
-
-### Cache Key Canonicalization
-
-Cache keys are built from:
-- HTTP Method
-- Route name
-- Path
-- Normalized query parameters (sorted)
-- Vary headers (e.g., Accept, Accept-Encoding)
-- Tenant ID (for isolation)
-
-```python
-# Same key regardless of query param order:
-/api/items?color=red&size=large  →  cache:a1b2c3...
-/api/items?size=large&color=red  →  cache:a1b2c3...
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Customer       │     │  Admin          │     │  API Gateway    │
+│  Portal         │     │  Panel          │     │  (FastAPI)      │
+│  (Next.js)      │     │  (Next.js)      │     │                 │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────────────┴───────────────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │                         │
+              ┌─────┴─────┐           ┌───────┴───────┐
+              │ PostgreSQL│           │    Redis      │
+              │ (Neon)    │           │  (Upstash)    │
+              └───────────┘           └───────────────┘
 ```
 
 ---
 
-## Stampede Protection + Coalescing
+## 🛠️ Tech Stack
 
-### Cache Stampede Problem
+### Backend
+- **Framework:** FastAPI (Python 3.11+)
+- **Database:** PostgreSQL (Neon)
+- **Cache:** Redis (Upstash)
+- **ORM:** SQLAlchemy (async)
+- **Migrations:** Alembic
+- **Auth:** JWT (python-jose)
+- **Email:** Resend API / SMTP
 
-Without protection, when a cache entry expires:
-- 100 concurrent requests all see cache miss
-- All 100 make upstream requests simultaneously
-- Upstream gets hammered
+### Frontend
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **State:** React Query (TanStack)
+- **Icons:** Lucide React
 
-### Solution: Distributed Locks + Coalescing
-
-```
-Request 1 ──► [Acquires Lock] ──► Fetches Upstream ──► Sets Cache ──► Response
-Request 2 ──► [Lock Busy]     ──► Waits ─────────────────────────────► Gets Result
-Request 3 ──► [Lock Busy]     ──► Waits ─────────────────────────────► Gets Result
-Request 4 ──► [Lock Busy]     ──► Waits ─────────────────────────────► Gets Result
-```
-
-**Result**: Only 1 upstream request instead of N.
-
----
-
-## Bloom Filter for Negative Caching
-
-### Problem
-
-APIs with many 404s waste resources:
-- `/items/12345` → 404 (cached)
-- `/items/99999` → 404 (not cached, hits upstream)
-- Repeated 404 requests hammer upstream
-
-### Solution: Bloom Filter
-
-A probabilistic data structure that answers "probably yes" or "definitely no":
-
-```
-┌───────────────────────────────────────┐
-│           Bloom Filter                │
-│  ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐   │
-│  │0│0│1│0│1│0│0│1│0│1│0│0│1│0│0│1│   │  ← Bit array
-│  └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘   │
-│          ▲           ▲       ▲        │
-│          │           │       │        │
-│       hash1(x)    hash2(x) hash3(x)   │
-└───────────────────────────────────────┘
-
-Check "/items/999":
-  - hash1 → bit[2] = 1 ✓
-  - hash2 → bit[4] = 1 ✓
-  - hash3 → bit[12] = 1 ✓
-  → "Probably seen before" → Return cached 404
-
-Check "/items/new":
-  - hash1 → bit[7] = 0 ✗
-  → "Definitely NOT seen" → Call upstream
-```
-
-**Tradeoffs**:
-- False positives possible (returns 404 for valid path)
-- No false negatives (if bloom says no, it's definitely new)
-- Configure `expected_items` and `false_positive_rate` for your use case
+### Infrastructure
+- **Gateway Hosting:** Render
+- **Frontend Hosting:** Vercel
+- **Database:** Neon (Serverless Postgres)
+- **Cache:** Upstash Redis
 
 ---
 
-## Abuse Detection Design
-
-### EWMA (Exponentially Weighted Moving Average)
-
-Tracks rolling request rate, giving more weight to recent values:
-
-```
-EWMA_new = α × current_value + (1 - α) × EWMA_old
-
-α = 0.3 (configurable)
-Higher α = more responsive to changes
-Lower α = more stable/smooth
-```
-
-### Z-Score Anomaly Detection
-
-Measures how many standard deviations a value is from the mean:
-
-```
-z = (value - mean) / std_dev
-
-If |z| > threshold (default: 3.0):
-  → Anomaly detected
-  → Apply rate limit multiplier or soft block
-```
-
-### Detection Flow
-
-```
-Normal Traffic (100 req/min avg)
-          │
-          ▼
-Sudden Spike (500 req/min)
-          │
-          ▼
-Z-Score Calculation: z = (500 - 100) / 50 = 8.0
-          │
-          ▼
-z > 3.0 → ANOMALY DETECTED
-          │
-          ▼
-Action: Soft block for 5 minutes
-        Log with reason and score
-```
-
----
-
-## Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Node.js 18+ (for UI development)
-- Python 3.11+ (for API development)
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL
+- Redis (optional - demo mode available)
 
 ### Local Development
 
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Ankurrawat-12/Heliox_Proxy.git
+   cd Heliox_Proxy
+   ```
+
+2. **Set up the backend**
+   ```bash
+   cd apps/gateway-api
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **Configure environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Run database migrations**
+   ```bash
+   alembic upgrade head
+   ```
+
+5. **Start the API server**
+   ```bash
+   uvicorn src.main:app --reload --port 8000
+   ```
+
+6. **Set up the Admin UI**
+   ```bash
+   cd ui/admin
+   npm install
+   npm run dev
+   ```
+
+7. **Set up the Customer Portal**
+   ```bash
+   cd ui/portal
+   npm install
+   npm run dev
+   ```
+
+### Using Docker
+
 ```bash
-# Clone and start all services
-cd infra
-docker-compose up -d --build
+# Build and start all services
+docker-compose -f infra/docker-compose.yml up --build
 
-# Wait for services to be healthy (about 30 seconds)
-docker ps
-
-# Services available at:
-# - Gateway API: http://localhost:8000
-# - Admin UI: http://localhost:3000
-# - Example Upstream: http://localhost:8001
-# - PostgreSQL: localhost:5432
-# - Redis: localhost:6379
-```
-
-### Auto-Seeded Data
-
-The gateway automatically seeds realistic sample data on first startup:
-
-**Tenants:**
-- Acme Corporation (E-commerce platform)
-- TechFlow Solutions (SaaS analytics)
-- CloudBridge Inc (API aggregation)
-
-**Pre-configured API Keys:**
-| Key | Tenant | Rate Limit | Daily Quota |
-|-----|--------|------------|-------------|
-| `hx_prod_acme_7k9m2n4p5q8r1s3t6u0v` | Acme Corporation | 500 RPS | 100,000 |
-| `hx_stage_acme_3f5g7h9j2k4l6m8n0p` | Acme (Staging) | 100 RPS | 10,000 |
-| `hx_prod_techflow_9a1b3c5d7e2f4g6h8i` | TechFlow | 250 RPS | 50,000 |
-| `hx_prod_cloudbridge_5m7n9p1q3r5s7t9u2v` | CloudBridge | 1000 RPS | 200,000 |
-
-**Routes:** `products`, `inventory`, `analytics`, `reports`, `services`, `webhooks`, `demo`
-
-### Verify Setup
-
-```bash
-# Check gateway health
-curl http://localhost:8000/health
-
-# Test the demo route (use a seeded API key)
-curl http://localhost:8000/g/demo/items \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-
-# Open Admin UI and enter admin key: admin-secret-key
-# http://localhost:3000
+# Or use the Makefile
+make up
 ```
 
 ---
 
-## Demo Commands
+## ⚙️ Environment Variables
 
-Use the pre-seeded API key: `hx_prod_acme_7k9m2n4p5q8r1s3t6u0v`
+### Backend (Gateway API)
 
-### Cache Miss vs Hit
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL async connection URL | Required |
+| `REDIS_URL` | Redis connection URL | Optional |
+| `SECRET_KEY` | JWT signing key | Required |
+| `ADMIN_API_KEY` | Admin authentication key | Required |
+| `RESEND_API_KEY` | Resend email API key | Optional |
+| `SKIP_EMAIL_VERIFICATION` | Skip OTP verification (dev mode) | `false` |
+| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
+| `FRONTEND_URL` | Portal URL for email links | `http://localhost:3000` |
 
-```bash
-# First request - Cache MISS (slow, ~2 seconds)
-curl -w "\nTime: %{time_total}s\n" \
-  http://localhost:8000/g/demo/slow?delay=2 \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
+### Frontend (Admin & Portal)
 
-# Second request - Cache HIT (instant, ~50ms)
-curl -w "\nTime: %{time_total}s\n" \
-  http://localhost:8000/g/demo/slow?delay=2 \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-```
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | Backend API URL |
 
-### SWR Behavior
-
-```bash
-# After TTL expires but within stale window:
-curl -v http://localhost:8000/g/demo/slow?delay=2 \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-# → Instant stale response
-# → X-Cache: STALE
-# → Background refresh happens automatically
-```
-
-### Rate Limiting (PowerShell)
-
-```powershell
-# Trigger rate limit (use staging key with 100 RPS limit)
-1..200 | ForEach-Object {
-  $response = Invoke-WebRequest -Uri "http://localhost:8000/g/demo/items" `
-    -Headers @{"X-API-Key"="hx_stage_acme_3f5g7h9j2k4l6m8n0p"} `
-    -SkipHttpErrorCheck
-  $response.StatusCode
-} | Group-Object | Format-Table Name, Count
-```
-
-### Rate Limiting (Bash)
-
-```bash
-# Trigger rate limit
-for i in {1..200}; do
-  curl -s -o /dev/null -w "%{http_code}\n" \
-    http://localhost:8000/g/demo/items \
-    -H "X-API-Key: hx_stage_acme_3f5g7h9j2k4l6m8n0p"
-done | sort | uniq -c
-```
-
-### Bloom Filter Effect
-
-```bash
-# First 404 - hits upstream
-curl http://localhost:8000/g/demo/items/nonexistent-product-xyz \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-# Check upstream stats
-curl http://localhost:8001/stats
-
-# Second 404 - bloom filter prevents upstream call
-curl http://localhost:8000/g/demo/items/nonexistent-product-xyz \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-# Upstream stats unchanged (no new request)
-```
-
-### Compare Gateway vs Upstream Stats
-
-```bash
-# Gateway metrics (JSON)
-curl http://localhost:8000/metrics
-
-# Gateway metrics (Prometheus format)
-curl http://localhost:8000/metrics/prometheus
-
-# Upstream request count
-curl http://localhost:8001/stats
-
-# With caching, gateway requests >> upstream requests
-```
+See `env.example` for all available options.
 
 ---
 
-## Deployment
+## 📖 API Documentation
 
-### Step-by-Step Production Deployment
+### Authentication
 
-#### 1. Set Up External Services (Free Tier Options)
-
-| Service | Provider | Free Tier | Setup Link |
-|---------|----------|-----------|------------|
-| PostgreSQL | [Neon](https://neon.tech) | 512MB storage | Sign up, create project |
-| PostgreSQL | [Supabase](https://supabase.com) | 500MB storage | Sign up, create project |
-| Redis | [Upstash](https://upstash.com) | 10K commands/day | Sign up, create database |
-| Redis | [Redis Cloud](https://redis.com) | 30MB | Sign up, create subscription |
-
-#### 2. Deploy Gateway API (Choose One)
-
-**Option A: Render.com**
-1. Create a new Web Service
-2. Connect your repository
-3. Set build command: `cd apps/gateway-api && pip install -r requirements.txt`
-4. Set start command: `cd apps/gateway-api && uvicorn src.main:app --host 0.0.0.0 --port $PORT`
-5. Add environment variables (see below)
-
-**Option B: Fly.io**
-```bash
-cd apps/gateway-api
-fly launch
-fly secrets set DATABASE_URL=... REDIS_URL=... SECRET_KEY=... ADMIN_API_KEY=...
-fly deploy
-```
-
-**Option C: Railway**
-1. New Project → Deploy from GitHub
-2. Select `apps/gateway-api` as root directory
-3. Add environment variables
-
-#### 3. Deploy Admin UI (Vercel)
+All gateway requests require an API key in the `X-Api-Key` header:
 
 ```bash
-cd ui/admin
-vercel
-# Set NEXT_PUBLIC_API_URL to your gateway URL
+curl -H "X-Api-Key: hx_your_api_key_here" \
+     https://heliox-gateway.onrender.com/g/your-route/endpoint
 ```
-
-Or use Vercel dashboard:
-1. Import repository
-2. Set root directory to `ui/admin`
-3. Add environment variable: `NEXT_PUBLIC_API_URL=https://your-gateway-url`
-
-#### 4. Required Environment Variables
-
-**Gateway API (Required)**:
-```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/dbname
-REDIS_URL=rediss://default:token@host:6379  # Use rediss:// for TLS
-SECRET_KEY=generate-a-32-char-random-string
-ADMIN_API_KEY=your-secure-admin-key
-CORS_ORIGINS=https://your-admin-ui.vercel.app
-AUTO_SEED=true
-DEBUG=false
-LOG_LEVEL=INFO
-```
-
-**Admin UI (Required)**:
-```bash
-NEXT_PUBLIC_API_URL=https://your-gateway-api.fly.dev
-```
-
-**Worker (Optional, for background tasks)**:
-```bash
-CELERY_BROKER_URL=redis://...
-CELERY_RESULT_BACKEND=redis://...
-DATABASE_URL=postgresql+asyncpg://...
-REDIS_URL=redis://...
-```
-
-#### 5. Run Database Migrations
-
-```bash
-# Option 1: Via deployed service shell
-fly ssh console  # or Render shell
-cd apps/gateway-api
-alembic upgrade head
-
-# Option 2: Locally with production DATABASE_URL
-export DATABASE_URL_SYNC="postgresql://..."
-alembic upgrade head
-```
-
-### Demo Mode (No Redis Required)
-
-For simple deployments without Redis:
-
-```bash
-DEPLOYMENT_MODE=demo
-REDIS_URL=  # Leave empty
-```
-
-**Demo mode limitations:**
-- ✅ In-memory LRU cache with TTL
-- ✅ Core gateway functionality works
-- ⚠️ No cross-instance cache sharing
-- ⚠️ Bloom filter disabled (negative caching unavailable)
-- ⚠️ Request coalescing limited to single instance
-- ⚠️ SWR refresh via BackgroundTasks (not Celery)
-
-### Docker Compose for Production
-
-```bash
-cd infra
-docker-compose -f docker-compose.yml up -d
-
-# For demo mode (no Redis)
-docker-compose -f docker-compose.demo.yml up -d
-```
-
-### Verify Deployment
-
-```bash
-# Check health
-curl https://your-gateway.fly.dev/health
-
-# Test with seeded API key
-curl https://your-gateway.fly.dev/g/demo/items \
-  -H "X-API-Key: hx_prod_acme_7k9m2n4p5q8r1s3t6u0v"
-
-# Access Admin UI
-# https://your-admin-ui.vercel.app
-# Enter your ADMIN_API_KEY in Settings
-```
-
----
-
-## API Reference
 
 ### Gateway Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/g/{route}/{path}` | ANY | Proxy to upstream |
-| `/health` | GET | Health check |
-| `/metrics` | GET | JSON metrics |
-| `/metrics/prometheus` | GET | Prometheus format |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `*` | `/g/{route_path}/**` | Proxy requests through the gateway |
+| `GET` | `/health` | Health check |
+| `GET` | `/docs` | OpenAPI documentation |
 
 ### Admin Endpoints
 
-All require `X-Admin-Key` header.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/tenants` | List all tenants |
+| `POST` | `/admin/tenants` | Create a tenant |
+| `GET` | `/admin/keys` | List all API keys |
+| `POST` | `/admin/keys` | Create an API key |
+| `GET` | `/admin/routes` | List all routes |
+| `POST` | `/admin/routes` | Create a route |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/admin/tenants` | GET, POST | Manage tenants |
-| `/admin/tenants/{id}` | GET, PATCH | Tenant details |
-| `/admin/keys` | GET, POST | Manage API keys |
-| `/admin/keys/{id}` | PATCH, DELETE | Key operations |
-| `/admin/keys/{id}/rotate` | POST | Rotate key |
-| `/admin/routes` | GET, POST | Manage routes |
-| `/admin/routes/{id}` | PATCH, DELETE | Route operations |
-| `/admin/policies` | GET, POST | Cache policies |
-| `/admin/analytics/summary` | GET | Dashboard stats |
-| `/admin/analytics/top-keys` | GET | Top API keys |
-| `/admin/analytics/top-routes` | GET | Top routes |
-| `/admin/analytics/cache-hit-rate` | GET | Cache stats |
-| `/admin/analytics/logs` | GET | Request logs |
-| `/admin/cache/purge` | POST | Purge cache |
-| `/admin/abuse/blocked` | GET | Blocked keys |
-| `/admin/abuse/unblock/{key_id}` | POST | Unblock key |
+### Portal Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/signup` | Create account |
+| `POST` | `/auth/login` | Login |
+| `GET` | `/portal/tenant` | Get tenant info |
+| `GET` | `/portal/keys` | List user's API keys |
+| `GET` | `/portal/usage` | Get usage statistics |
 
 ---
 
-## Configuration
+## 📁 Project Structure
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | - | PostgreSQL async URL |
-| `REDIS_URL` | - | Redis URL (empty = demo mode) |
-| `SECRET_KEY` | - | Application secret |
-| `ADMIN_API_KEY` | - | Admin authentication key |
-| `DEBUG` | false | Enable debug mode |
-| `LOG_LEVEL` | INFO | Logging level |
-| `DEFAULT_RATE_LIMIT_RPS` | 100 | Default rate limit |
-| `DEFAULT_RATE_LIMIT_BURST` | 200 | Default burst size |
-| `ABUSE_EWMA_ALPHA` | 0.3 | EWMA smoothing factor |
-| `ABUSE_ZSCORE_THRESHOLD` | 3.0 | Anomaly detection threshold |
-| `ABUSE_BLOCK_DURATION_SECONDS` | 300 | Soft block duration |
-| `BLOOM_EXPECTED_ITEMS` | 10000 | Bloom filter size |
-| `BLOOM_FALSE_POSITIVE_RATE` | 0.01 | Bloom filter FP rate |
-
----
-
-## Development
-
-### Running Tests
-
-```bash
-cd apps/gateway-api
-pip install -e ".[dev]"
-pytest tests/ -v
 ```
-
-### Database Migrations
-
-```bash
-cd apps/gateway-api
-alembic upgrade head
-```
-
-### Code Quality
-
-```bash
-# Linting
-ruff check .
-
-# Type checking
-mypy src/
+heliox_proxy/
+├── apps/
+│   └── gateway-api/          # FastAPI backend
+│       ├── src/
+│       │   ├── api/          # API routes
+│       │   ├── models/       # SQLAlchemy models
+│       │   ├── schemas/      # Pydantic schemas
+│       │   ├── services/     # Business logic
+│       │   └── main.py       # Application entry
+│       ├── alembic/          # Database migrations
+│       └── requirements.txt
+├── ui/
+│   ├── admin/                # Admin panel (Next.js)
+│   │   └── src/
+│   │       ├── app/          # App router pages
+│   │       ├── components/   # React components
+│   │       └── lib/          # Utilities & API client
+│   └── portal/               # Customer portal (Next.js)
+│       └── src/
+│           ├── app/          # App router pages
+│           ├── components/   # React components
+│           └── lib/          # Utilities & API client
+├── infra/
+│   └── docker-compose.yml    # Docker configuration
+├── env.example               # Environment template
+├── Makefile                  # Development commands
+└── README.md
 ```
 
 ---
 
-## Limitations
+## 🔧 Development Commands
 
-1. **Demo Mode**: No cross-instance cache sharing without Redis
-2. **Bloom Filter**: False positives possible - tune `false_positive_rate`
-3. **Request Coalescing**: In-process only without Redis pub/sub
-4. **Log Retention**: Implement cleanup job for production
-5. **Horizontal Scaling**: Requires sticky sessions or Redis pub/sub for full coalescing
+```bash
+# Start all services
+make up
+
+# View logs
+make logs
+
+# Run database migrations
+make migrate
+
+# Seed database
+make seed
+
+# Stop all services
+make down
+
+# Clean up (remove volumes)
+make clean
+```
 
 ---
 
-## License
+## 🚢 Deployment
 
-MIT License - see [LICENSE](LICENSE) for details.
+### Render (Backend)
+
+1. Create a new **Web Service**
+2. Connect your GitHub repository
+3. Set **Root Directory:** `apps/gateway-api`
+4. Set **Build Command:** `pip install -r requirements.txt`
+5. Set **Start Command:** `uvicorn src.main:app --host 0.0.0.0 --port $PORT`
+6. Add environment variables from `env.example`
+
+### Vercel (Frontend)
+
+**Admin Panel:**
+1. Import project from GitHub
+2. Set **Root Directory:** `ui/admin`
+3. Add `NEXT_PUBLIC_API_URL` environment variable
+
+**Customer Portal:**
+1. Import project from GitHub
+2. Set **Root Directory:** `ui/portal`
+3. Add `NEXT_PUBLIC_API_URL` environment variable
 
 ---
 
-## Contributing
+## 🧪 Testing the Gateway
 
-Contributions welcome! Please read our contributing guidelines first.
+```bash
+# Create a test request through the gateway
+curl -v -H "X-Api-Key: YOUR_API_KEY" \
+     "https://heliox-gateway.onrender.com/g/your-route/endpoint"
+
+# Check cache headers
+# x-cache: HIT (from cache)
+# x-cache: MISS (from upstream)
+```
+
+---
+
+## 📊 Subscription Plans
+
+| Feature | Free | Pro | Enterprise |
+|---------|------|-----|------------|
+| Daily Requests | 1,000 | 50,000 | Unlimited |
+| Monthly Requests | 10,000 | 500,000 | Unlimited |
+| API Keys | 2 | 10 | Unlimited |
+| Routes | 5 | 25 | Unlimited |
+| Rate Limit | 10 RPS | 100 RPS | Custom |
+| Caching | ✅ | ✅ | ✅ |
+| Analytics | Basic | Advanced | Advanced |
+| Support | Community | Email | Priority |
+
+---
+
+## 👥 Founders
+
+<table>
+  <tr>
+    <td align="center">
+      <b>Jay Bankoti</b><br>
+      <sub>Founder</sub>
+    </td>
+    <td align="center">
+      <b>Ankur Rawat</b><br>
+      <sub>Co-Founder</sub>
+    </td>
+    <td align="center">
+      <b>Kushagra Gupta</b><br>
+      <sub>Co-Founder</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+<div align="center">
+
+**Built with ❤️ by the Heliox Team**
+
+[Website](https://heliox-portal.vercel.app) • [Documentation](https://heliox-gateway.onrender.com/docs) • [Report Bug](https://github.com/Ankurrawat-12/Heliox_Proxy/issues)
+
+</div>
