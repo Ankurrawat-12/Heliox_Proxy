@@ -30,29 +30,40 @@ def run_migrations() -> None:
     import subprocess
     import os
     
+    settings = get_settings()
+    
     # Get the directory where alembic.ini is located
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     alembic_ini = os.path.join(base_dir, "alembic.ini")
     
     if os.path.exists(alembic_ini):
         logger.info("Running database migrations...")
+        logger.info(f"Using database: {settings.database_url_sync[:50]}...")
         try:
+            # Pass environment with current env + ensure DATABASE_URL is set
+            env = os.environ.copy()
+            env["DATABASE_URL"] = settings.database_url
+            env["DATABASE_URL_SYNC"] = settings.database_url_sync
+            
             result = subprocess.run(
                 ["alembic", "upgrade", "head"],
                 cwd=base_dir,
                 capture_output=True,
                 text=True,
+                env=env,
             )
             if result.returncode == 0:
                 logger.info("Migrations completed successfully")
+                if result.stdout:
+                    logger.info(f"Migration output: {result.stdout}")
             else:
-                logger.warning(f"Migration output: {result.stdout}")
-                if result.stderr:
-                    logger.warning(f"Migration stderr: {result.stderr}")
+                logger.error(f"Migration failed with code {result.returncode}")
+                logger.error(f"Migration stdout: {result.stdout}")
+                logger.error(f"Migration stderr: {result.stderr}")
         except Exception as e:
-            logger.warning(f"Could not run migrations: {e}")
+            logger.error(f"Could not run migrations: {e}")
     else:
-        logger.info("No alembic.ini found, skipping migrations")
+        logger.info(f"No alembic.ini found at {alembic_ini}, skipping migrations")
 
 
 @asynccontextmanager

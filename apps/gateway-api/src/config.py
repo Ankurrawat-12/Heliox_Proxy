@@ -23,9 +23,22 @@ class Settings(BaseSettings):
         description="Async PostgreSQL connection URL",
     )
     database_url_sync: str = Field(
-        default="postgresql://heliox:heliox_password@localhost:5432/heliox",
-        description="Sync PostgreSQL connection URL (for Alembic)",
+        default="",
+        description="Sync PostgreSQL connection URL (for Alembic). Auto-generated if empty.",
     )
+    
+    @field_validator("database_url_sync", mode="after")
+    @classmethod
+    def generate_sync_url(cls, v: str, info) -> str:
+        """Auto-generate sync URL from async URL if not provided."""
+        if v:
+            return v
+        # Get the async URL from the data
+        async_url = info.data.get("database_url", "")
+        if async_url:
+            # Convert postgresql+asyncpg:// to postgresql://
+            return async_url.replace("postgresql+asyncpg://", "postgresql://")
+        return "postgresql://heliox:heliox_password@localhost:5432/heliox"
 
     # Redis
     redis_url: str = Field(
