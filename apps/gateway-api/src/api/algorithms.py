@@ -8,7 +8,7 @@ and manage algorithm instances.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from src.api.admin import verify_admin_key
+from src.api.admin import verify_admin_access
 from src.services.algorithms import (
     AdaptiveRateLimiter,
     CircuitBreaker,
@@ -199,7 +199,7 @@ class AlgorithmSummary(BaseModel):
 
 @router.get("/summary", response_model=AlgorithmSummary)
 async def get_algorithms_summary(
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> AlgorithmSummary:
     """
     Get a summary of all available algorithms.
@@ -292,7 +292,7 @@ async def get_algorithms_summary(
 @router.post("/rate-limit/test", response_model=RateLimitTestResponse)
 async def test_rate_limiter(
     request: RateLimitTestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> RateLimitTestResponse:
     """
     Test different rate limiting algorithms.
@@ -355,7 +355,7 @@ async def test_rate_limiter(
 @router.post("/circuit-breaker/test", response_model=CircuitBreakerResponse)
 async def test_circuit_breaker(
     request: CircuitBreakerTestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> CircuitBreakerResponse:
     """
     Test circuit breaker operations.
@@ -399,7 +399,7 @@ async def test_circuit_breaker(
 @router.post("/bloom/test", response_model=BloomFilterResponse)
 async def test_bloom_filter(
     request: BloomFilterTestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> BloomFilterResponse:
     """
     Test bloom filter operations.
@@ -432,7 +432,7 @@ async def test_bloom_filter(
 @router.post("/cms/test", response_model=CountMinSketchResponse)
 async def test_count_min_sketch(
     request: CountMinSketchRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> CountMinSketchResponse:
     """
     Test Count-Min Sketch operations.
@@ -466,7 +466,7 @@ _consistent_hash = ConsistentHash(nodes=["node-1", "node-2", "node-3"])
 @router.post("/consistent-hash/test", response_model=ConsistentHashResponse)
 async def test_consistent_hash(
     request: ConsistentHashRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> ConsistentHashResponse:
     """
     Test consistent hashing operations.
@@ -517,7 +517,7 @@ async def test_consistent_hash(
 @router.post("/hll/test", response_model=HyperLogLogResponse)
 async def test_hyperloglog(
     request: HyperLogLogRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> HyperLogLogResponse:
     """
     Test HyperLogLog operations.
@@ -563,7 +563,7 @@ async def test_hyperloglog(
 @router.post("/ewma/test", response_model=EWMATestResponse)
 async def test_ewma(
     request: EWMATestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> EWMATestResponse:
     """
     Test EWMA (Exponentially Weighted Moving Average) calculation.
@@ -595,7 +595,7 @@ async def test_ewma(
 @router.post("/zscore/test", response_model=ZScoreTestResponse)
 async def test_zscore(
     request: ZScoreTestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> ZScoreTestResponse:
     """
     Test Z-score anomaly detection.
@@ -621,7 +621,7 @@ async def test_zscore(
 @router.post("/backoff/test", response_model=BackoffTestResponse)
 async def test_backoff(
     request: BackoffTestRequest,
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> BackoffTestResponse:
     """
     Test exponential backoff calculation.
@@ -656,7 +656,7 @@ async def test_backoff(
 @router.get("/adaptive/status")
 async def get_adaptive_status(
     key: str = Query(default="default", description="Rate limit key"),
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> dict:
     """
     Get adaptive rate limiter status for a key.
@@ -680,7 +680,7 @@ async def simulate_adaptive_update(
     memory_usage: float = Query(default=0.5, ge=0, le=1),
     latency_p99: float = Query(default=100, ge=0),
     error_rate: float = Query(default=0.01, ge=0, le=1),
-    _: str = Depends(verify_admin_key),
+    _: str = Depends(verify_admin_access),
 ) -> dict:
     """
     Simulate an adaptive rate limit update based on system load.
