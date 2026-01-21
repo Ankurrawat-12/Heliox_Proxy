@@ -63,7 +63,7 @@ export default function KeysPage() {
     mutationFn: (name: string) => portalApi.createApiKey({ name }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] });
-      setNewSecret(data.secret);
+      setNewSecret(data.key);  // Backend returns full key in 'key' field
       setShowCreateModal(false);
       setShowSecretModal(true);
       setNewKeyName('');
@@ -82,7 +82,7 @@ export default function KeysPage() {
     mutationFn: (id: string) => portalApi.rotateApiKey(id),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] });
-      setNewSecret(data.secret);
+      setNewSecret(data.key);  // Backend returns full key in 'key' field
       setShowSecretModal(true);
     },
   });

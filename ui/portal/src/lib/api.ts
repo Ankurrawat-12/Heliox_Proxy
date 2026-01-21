@@ -270,7 +270,7 @@ export const portalApi = {
     return request<ApiKey[]>('/portal/keys');
   },
 
-  async createApiKey(data: { name: string; expires_at?: string }): Promise<{ key: ApiKey; secret: string }> {
+  async createApiKey(data: { name: string; expires_at?: string }): Promise<ApiKey & { key: string }> {
     return request('/portal/keys', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -281,7 +281,7 @@ export const portalApi = {
     await request(`/portal/keys/${id}`, { method: 'DELETE' });
   },
 
-  async rotateApiKey(id: string): Promise<{ key: ApiKey; secret: string }> {
+  async rotateApiKey(id: string): Promise<ApiKey & { key: string }> {
     return request(`/portal/keys/${id}/rotate`, { method: 'POST' });
   },
 

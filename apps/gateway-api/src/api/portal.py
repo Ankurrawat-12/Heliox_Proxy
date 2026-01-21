@@ -307,6 +307,45 @@ async def create_api_key(
     )
 
 
+@router.post("/keys/{key_id}/rotate", response_model=PortalApiKey)
+async def rotate_api_key(
+    key_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PortalApiKey:
+    """Rotate an API key (generate new secret)."""
+    tenant = require_tenant(user)
+    
+    result = await db.execute(
+        select(ApiKey)
+        .where(ApiKey.id == key_id)
+        .where(ApiKey.tenant_id == tenant.id)
+    )
+    api_key = result.scalar_one_or_none()
+    
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API key not found")
+    
+    # Generate new key
+    new_key = generate_api_key()
+    api_key.key = new_key
+    api_key.key_prefix = new_key[:10]
+    await db.flush()
+    
+    return PortalApiKey(
+        id=api_key.id,
+        name=api_key.name,
+        key_prefix=api_key.key_prefix,
+        key=api_key.key,  # Return full key after rotation
+        status=api_key.status.value,
+        quota_daily=api_key.quota_daily,
+        quota_monthly=api_key.quota_monthly,
+        rate_limit_rps=api_key.rate_limit_rps,
+        created_at=api_key.created_at,
+        last_used_at=api_key.last_used_at,
+    )
+
+
 @router.delete("/keys/{key_id}")
 async def delete_api_key(
     key_id: str,
