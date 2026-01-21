@@ -137,6 +137,24 @@ def run_direct_schema_updates(database_url: str) -> None:
                 """))
                 conn.commit()
             
+            # Check and add payment columns to plans table
+            result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'plans' AND column_name = 'razorpay_plan_id'
+                )
+            """))
+            razorpay_plan_id_exists = result.scalar()
+            
+            if not razorpay_plan_id_exists:
+                logger.info("Adding payment columns to plans table...")
+                conn.execute(text("""
+                    ALTER TABLE plans 
+                    ADD COLUMN IF NOT EXISTS razorpay_plan_id VARCHAR(255) UNIQUE,
+                    ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(255) UNIQUE
+                """))
+                conn.commit()
+            
             # Check and add plan_id to tenants
             result = conn.execute(text("""
                 SELECT EXISTS (
