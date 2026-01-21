@@ -10,10 +10,11 @@ from sqlalchemy.orm import selectinload
 
 from src.config import get_settings
 from src.database import get_db
-from src.models import ApiKey, BlockRule, CachePolicy, Plan, RequestLog, Route, Tenant
+from src.models import ApiKey, BlockRule, CachePolicy, Plan, RequestLog, Route, Tenant, User
 from src.models.api_key import ApiKeyStatus, generate_api_key
 from src.models.block_rule import BlockReason
 from src.models.request_log import CacheStatus
+from src.models.user import UserRole
 from src.schemas.admin import (
     ApiKeyCreate,
     ApiKeyResponse,
@@ -50,20 +51,44 @@ from src.schemas.analytics import (
 )
 from src.services.abuse import abuse_detector
 from src.services.cache import cache_service
+from src.api.auth import decode_access_token
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-async def verify_admin_key(
+async def verify_admin_access(
     x_admin_key: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Verify admin API key."""
+    """Verify admin access via API key OR JWT token."""
     settings = get_settings()
-    if x_admin_key != settings.admin_api_key:
-        raise HTTPException(status_code=401, detail="Invalid admin API key")
+    
+    # Method 1: Check X-Admin-Key header (for backward compatibility / programmatic access)
+    if x_admin_key and x_admin_key == settings.admin_api_key:
+        return
+    
+    # Method 2: Check JWT Bearer token (for admin UI)
+    if authorization:
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+            user_id = decode_access_token(token)
+            
+            if user_id:
+                # Verify user exists and is admin
+                result = await db.execute(
+                    select(User).where(User.id == user_id)
+                )
+                user = result.scalar_one_or_none()
+                
+                if user and user.role == UserRole.ADMIN and user.is_active:
+                    return
+    
+    raise HTTPException(status_code=401, detail="Admin access required")
 
 
-AdminDep = Depends(verify_admin_key)
+AdminDep = Depends(verify_admin_access)
 
 
 # =============================================================================
