@@ -35,6 +35,30 @@ services:
       retries: 5
 
   # =============================================================================
+  # DATABASE SETUP (runs once)
+  # =============================================================================
+
+  migrate:
+    build:
+      context: ../apps/gateway-api
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: heliox-migrate
+    environment:
+      DATABASE_URL: postgresql+asyncpg://heliox:heliox_password@postgres:5432/heliox
+      DATABASE_URL_SYNC: postgresql://heliox:heliox_password@postgres:5432/heliox
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+      AUTO_SEED: "true"
+    command: migrate-and-seed
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  # =============================================================================
   # APPLICATION SERVICES
   # =============================================================================
 
@@ -48,14 +72,25 @@ services:
       DATABASE_URL: postgresql+asyncpg://heliox:heliox_password@postgres:5432/heliox
       DATABASE_URL_SYNC: postgresql://heliox:heliox_password@postgres:5432/heliox
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: dev-secret-key-change-in-production
-      ADMIN_API_KEY: admin-secret-key
-      DEBUG: "true"
-      LOG_LEVEL: INFO
-      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-secret-key}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       AUTO_SEED: "true"
+      # Email settings (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # Razorpay settings (optional)
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -63,6 +98,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -83,6 +120,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   upstream:
@@ -105,11 +144,12 @@ services:
       dockerfile: Dockerfile
     container_name: heliox-admin
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     depends_on:
-      - gateway-api
+      gateway-api:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

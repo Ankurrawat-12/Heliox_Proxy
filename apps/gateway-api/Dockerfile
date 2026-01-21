@@ -34,12 +34,29 @@ ENV AUTO_SEED=false
 RUN python -m pytest tests/ -v --tb=short || echo "Tests completed"
 
 # =============================================================================
+# Migration stage - for running migrations only
+# =============================================================================
+FROM base AS migrate
+
+# Copy entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["migrate"]
+
+# =============================================================================
 # Production stage
 # =============================================================================
 FROM base AS production
 
 # Create non-root user
 RUN useradd -m -u 1000 heliox && chown -R heliox:heliox /app
+
+# Copy entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 USER heliox
 
 # Expose port
@@ -49,5 +66,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run application
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["serve"]
