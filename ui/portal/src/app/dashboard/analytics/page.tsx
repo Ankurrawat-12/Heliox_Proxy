@@ -63,9 +63,8 @@ export default function AnalyticsPage() {
     queryFn: () => portalApi.getLogs({ page: 1, page_size: 10 }),
   });
 
-  const cacheHitRate = usage?.cache_hits && usage?.cache_misses
-    ? Math.round((usage.cache_hits / (usage.cache_hits + usage.cache_misses)) * 100)
-    : 0;
+  // Backend returns cache_hit_rate as a decimal (0-1)
+  const cacheHitRate = Math.round((usage?.cache_hit_rate || 0) * 100);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -110,7 +109,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Total Requests"
-              value={usage?.requests_today?.toLocaleString() || '0'}
+              value={usage?.daily_requests?.toLocaleString() || '0'}
               subtitle="Today"
               icon={Activity}
               color="indigo"
@@ -118,23 +117,23 @@ export default function AnalyticsPage() {
             <StatCard
               title="Cache Hit Rate"
               value={`${cacheHitRate}%`}
-              subtitle={`${usage?.cache_hits || 0} hits / ${usage?.cache_misses || 0} misses`}
+              subtitle="Cache performance"
               icon={Zap}
               color="green"
             />
             <StatCard
               title="Avg Latency"
-              value={`${usage?.avg_latency_ms?.toFixed(0) || 0}ms`}
+              value={`${(usage?.avg_latency_ms || 0).toFixed(0)}ms`}
               subtitle="Response time"
               icon={Clock}
               color="yellow"
             />
             <StatCard
-              title="Errors"
-              value={usage?.error_count || 0}
+              title="Error Rate"
+              value={`${((usage?.error_rate || 0) * 100).toFixed(1)}%`}
               subtitle="In the period"
               icon={AlertTriangle}
-              color={usage?.error_count ? 'red' : 'green'}
+              color={(usage?.error_rate || 0) > 0.01 ? 'red' : 'green'}
             />
           </div>
 
@@ -149,17 +148,17 @@ export default function AnalyticsPage() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-zinc-400">
-                      {usage?.requests_today?.toLocaleString() || 0} / {usage?.quota_daily?.toLocaleString() || '1,000'} requests
+                      {usage?.daily_requests?.toLocaleString() || 0} / {usage?.daily_limit?.toLocaleString() || '1,000'} requests
                     </span>
                     <span className="text-zinc-400">
-                      {Math.round(((usage?.requests_today || 0) / (usage?.quota_daily || 1000)) * 100)}%
+                      {(usage?.daily_percent || 0).toFixed(1)}%
                     </span>
                   </div>
                   <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-indigo-500 rounded-full transition-all duration-500"
                       style={{
-                        width: `${Math.min(100, ((usage?.requests_today || 0) / (usage?.quota_daily || 1000)) * 100)}%`,
+                        width: `${Math.min(100, usage?.daily_percent || 0)}%`,
                       }}
                     />
                   </div>
@@ -176,17 +175,17 @@ export default function AnalyticsPage() {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-zinc-400">
-                      {usage?.requests_this_month?.toLocaleString() || 0} / {usage?.quota_monthly?.toLocaleString() || '10,000'} requests
+                      {usage?.monthly_requests?.toLocaleString() || 0} / {usage?.monthly_limit?.toLocaleString() || '10,000'} requests
                     </span>
                     <span className="text-zinc-400">
-                      {Math.round(((usage?.requests_this_month || 0) / (usage?.quota_monthly || 10000)) * 100)}%
+                      {(usage?.monthly_percent || 0).toFixed(1)}%
                     </span>
                   </div>
                   <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-green-500 rounded-full transition-all duration-500"
                       style={{
-                        width: `${Math.min(100, ((usage?.requests_this_month || 0) / (usage?.quota_monthly || 10000)) * 100)}%`,
+                        width: `${Math.min(100, usage?.monthly_percent || 0)}%`,
                       }}
                     />
                   </div>
