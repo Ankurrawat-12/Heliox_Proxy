@@ -67,16 +67,17 @@ export interface ApiKey {
   id: string;
   name: string;
   key_prefix: string;
-  tenant_id: string;
+  tenant_id?: string;
+  status?: string;
   is_active: boolean;
   rate_limit_rps: number | null;
-  rate_limit_burst: number | null;
+  rate_limit_burst?: number | null;
   quota_daily: number | null;
   quota_monthly: number | null;
-  requests_today: number;
-  requests_this_month: number;
+  requests_today?: number;
+  requests_this_month?: number;
   last_used_at: string | null;
-  expires_at: string | null;
+  expires_at?: string | null;
   created_at: string;
 }
 

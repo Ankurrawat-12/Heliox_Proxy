@@ -49,6 +49,7 @@ class PortalApiKey(BaseModel):
     key_prefix: str
     key: str | None = None  # Only on creation
     status: str
+    is_active: bool  # Derived from status
     quota_daily: int
     quota_monthly: int
     rate_limit_rps: float | None
@@ -239,6 +240,7 @@ async def list_api_keys(
             name=key.name,
             key_prefix=key.key_prefix,
             status=key.status.value if hasattr(key.status, 'value') else str(key.status),
+            is_active=key.is_active,
             quota_daily=key.quota_daily,
             quota_monthly=key.quota_monthly,
             rate_limit_rps=key.rate_limit_rps,
@@ -299,6 +301,7 @@ async def create_api_key(
         key_prefix=api_key.key_prefix,
         key=api_key.key,  # Return full key only on creation
         status=api_key.status.value,
+        is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
         rate_limit_rps=api_key.rate_limit_rps,
@@ -338,6 +341,7 @@ async def rotate_api_key(
         key_prefix=api_key.key_prefix,
         key=api_key.key,  # Return full key after rotation
         status=api_key.status.value,
+        is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
         rate_limit_rps=api_key.rate_limit_rps,
