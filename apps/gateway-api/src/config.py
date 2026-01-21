@@ -81,6 +81,36 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: str = Field(default="http://localhost:3000")
+    
+    # Frontend URL (for email links)
+    frontend_url: str = Field(
+        default="http://localhost:3000",
+        description="Frontend URL for email links",
+    )
+    
+    # SMTP Configuration
+    smtp_host: str = Field(default="", description="SMTP server host")
+    smtp_port: int = Field(default=587, description="SMTP server port")
+    smtp_secure: bool = Field(default=False, description="Use TLS")
+    smtp_user: str = Field(default="", description="SMTP username")
+    smtp_pass: str = Field(default="", description="SMTP password")
+    smtp_from_email: str = Field(default="", description="From email address")
+    smtp_from_name: str = Field(default="Heliox", description="From name")
+    
+    # Razorpay Configuration
+    razorpay_key_id: str = Field(default="", description="Razorpay Key ID")
+    razorpay_key_secret: str = Field(default="", description="Razorpay Key Secret")
+    razorpay_webhook_secret: str = Field(default="", description="Razorpay Webhook Secret")
+    
+    @property
+    def smtp_configured(self) -> bool:
+        """Check if SMTP is configured."""
+        return bool(self.smtp_host and self.smtp_user and self.smtp_pass)
+    
+    @property
+    def razorpay_configured(self) -> bool:
+        """Check if Razorpay is configured."""
+        return bool(self.razorpay_key_id and self.razorpay_key_secret)
 
     # Deployment mode
     deployment_mode: Literal["full", "demo"] = Field(default="full")

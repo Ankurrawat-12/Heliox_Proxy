@@ -14,6 +14,7 @@ from src.api.algorithms import router as algorithms_router
 from src.api.auth import router as auth_router
 from src.api.gateway import router as gateway_router
 from src.api.health import router as health_router
+from src.api.payment import router as payment_router
 from src.api.portal import router as portal_router
 from src.config import get_settings
 from src.database import close_db, get_db_context, init_db
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(payment_router)
     app.include_router(portal_router)
     app.include_router(gateway_router)
     app.include_router(admin_router)

@@ -16,6 +16,7 @@ from src.config import get_settings
 from src.database import get_db
 from src.models import Plan, Tenant, User
 from src.models.user import UserRole
+from src.services.email import email_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -236,6 +237,9 @@ async def signup(
     db.add(tenant)
     await db.flush()
     
+    # Generate email verification token
+    verification_token = secrets.token_urlsafe(32)
+    
     # Create user as owner
     user = User(
         email=data.email,
@@ -243,10 +247,18 @@ async def signup(
         name=data.name,
         tenant_id=tenant.id,
         role=UserRole.OWNER,
-        email_verified=False,  # TODO: Send verification email
+        email_verified=False,
+        email_verification_token=verification_token,
+        email_verification_expires=datetime.now(timezone.utc) + timedelta(hours=24),
     )
     db.add(user)
     await db.flush()
+    
+    # Send verification email (async, don't block signup)
+    email_service.send_verification_email(data.email, verification_token)
+    
+    # Send welcome email
+    email_service.send_welcome_email(data.email, data.company_name)
     
     # Generate token
     access_token, expires_in = create_access_token(user.id)
@@ -377,10 +389,8 @@ async def forgot_password(
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         await db.flush()
         
-        # TODO: Send email with reset link
-        # For now, log the token (remove in production!)
-        import logging
-        logging.info(f"Password reset token for {user.email}: {token}")
+        # Send password reset email
+        email_service.send_password_reset_email(user.email, token)
     
     # Always return success to prevent email enumeration
     return {"message": "If your email is registered, you will receive a password reset link"}
@@ -423,3 +433,51 @@ async def refresh_token(user: User = Depends(get_current_user)) -> TokenResponse
         expires_in=expires_in,
         user=build_user_response(user),
     )
+
+
+@router.post("/verify-email")
+async def verify_email(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Verify email address with token."""
+    
+    result = await db.execute(
+        select(User).where(
+            User.email_verification_token == token,
+            User.email_verification_expires > datetime.now(timezone.utc),
+        )
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    
+    user.email_verified = True
+    user.email_verification_token = None
+    user.email_verification_expires = None
+    await db.flush()
+    
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Resend email verification."""
+    
+    if user.email_verified:
+        return {"message": "Email already verified"}
+    
+    # Generate new verification token
+    verification_token = secrets.token_urlsafe(32)
+    user.email_verification_token = verification_token
+    user.email_verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    await db.flush()
+    
+    # Send verification email
+    email_service.send_verification_email(user.email, verification_token)
+    
+    return {"message": "Verification email sent"}

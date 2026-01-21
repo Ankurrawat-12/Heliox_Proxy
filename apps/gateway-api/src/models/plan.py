@@ -67,6 +67,18 @@ class Plan(Base):
     priority_support: Mapped[bool] = mapped_column(Boolean, default=False)
     custom_domains: Mapped[bool] = mapped_column(Boolean, default=False)
     
+    # Payment integration
+    razorpay_plan_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        unique=True,
+    )
+    stripe_price_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        unique=True,
+    )
+    
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)  # Default plan for new tenants

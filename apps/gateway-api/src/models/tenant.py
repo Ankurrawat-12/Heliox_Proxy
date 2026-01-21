@@ -43,7 +43,13 @@ class Tenant(Base):
         index=True,
     )
     
-    # Stripe billing
+    # Billing
+    billing_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    
+    # Stripe billing (legacy)
     stripe_customer_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -53,7 +59,18 @@ class Tenant(Base):
         String(255),
         nullable=True,
     )
-    billing_email: Mapped[str | None] = mapped_column(
+    
+    # Razorpay billing
+    razorpay_customer_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+    razorpay_subscription_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    razorpay_payment_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
     )
