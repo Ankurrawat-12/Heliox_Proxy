@@ -32,6 +32,7 @@ export interface Tenant {
   id: string;
   name: string;
   description: string | null;
+  plan_id: string | null;
   plan_name: string | null;
   plan_tier: string | null;
   api_key_count: number;

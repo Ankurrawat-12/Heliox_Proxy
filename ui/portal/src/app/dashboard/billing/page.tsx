@@ -211,12 +211,12 @@ export default function BillingPage() {
       </div>
 
       {/* Current Plan Info */}
-      {tenant?.plan && (
+      {tenant?.plan_name && (
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-zinc-400">Current Plan</p>
-              <p className="text-xl font-bold text-white">{tenant.plan.name}</p>
+              <p className="text-xl font-bold text-white">{tenant.plan_name}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-zinc-400">Next billing date</p>
@@ -239,7 +239,7 @@ export default function BillingPage() {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                currentPlanId={tenant?.plan?.id || null}
+                currentPlanId={tenant?.plan_id || null}
                 onSelect={handleSelectPlan}
                 loading={false}
               />
