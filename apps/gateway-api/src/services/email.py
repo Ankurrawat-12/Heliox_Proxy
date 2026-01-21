@@ -2,6 +2,7 @@
 
 import logging
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -28,18 +29,14 @@ class EmailService:
         smtp.login(self.settings.smtp_user, self.settings.smtp_pass)
         return smtp
     
-    def send_email(
+    def _send_email_sync(
         self,
         to_email: str,
         subject: str,
         html_content: str,
         text_content: Optional[str] = None,
     ) -> bool:
-        """Send an email."""
-        if not self.settings.smtp_configured:
-            logger.warning("SMTP not configured, skipping email send")
-            return False
-        
+        """Send an email synchronously (internal)."""
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
@@ -67,6 +64,28 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to send email to {to_email}: {e}")
             return False
+
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+    ) -> bool:
+        """Send an email in background thread (non-blocking)."""
+        if not self.settings.smtp_configured:
+            logger.warning("SMTP not configured, skipping email send")
+            return False
+        
+        # Run in background thread to not block the request
+        thread = threading.Thread(
+            target=self._send_email_sync,
+            args=(to_email, subject, html_content, text_content),
+            daemon=True,
+        )
+        thread.start()
+        
+        return True  # Return immediately, email will be sent in background
     
     def send_verification_email(self, to_email: str, token: str) -> bool:
         """Send email verification email."""
