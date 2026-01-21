@@ -37,6 +37,9 @@ class EmailService:
         text_content: Optional[str] = None,
     ) -> bool:
         """Send an email synchronously (internal)."""
+        logger.info(f"Attempting to send email to {to_email}")
+        logger.info(f"SMTP Config: host={self.settings.smtp_host}, port={self.settings.smtp_port}, secure={self.settings.smtp_secure}, user={self.settings.smtp_user}")
+        
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
@@ -51,18 +54,28 @@ class EmailService:
             msg.attach(MIMEText(html_content, "html"))
             
             # Send email
+            logger.info(f"Connecting to SMTP server {self.settings.smtp_host}:{self.settings.smtp_port}...")
             with self._get_smtp_connection() as smtp:
+                logger.info("SMTP connection established, sending email...")
                 smtp.sendmail(
                     self.settings.smtp_from_email or self.settings.smtp_user,
                     to_email,
                     msg.as_string(),
                 )
             
-            logger.info(f"Email sent to {to_email}: {subject}")
+            logger.info(f"✓ Email successfully sent to {to_email}: {subject}")
             return True
             
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP Authentication failed: {e}")
+            return False
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP error sending to {to_email}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {e}")
+            logger.error(f"Failed to send email to {to_email}: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
 
     def send_email(

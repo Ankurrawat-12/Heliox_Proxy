@@ -597,3 +597,67 @@ async def resend_verification(
     email_service.send_verification_email(user.email, verification_token)
     
     return {"message": "Verification email sent"}
+
+
+@router.get("/test-email")
+async def test_email() -> dict:
+    """Test email configuration (sends a test email synchronously)."""
+    from src.config import get_settings
+    settings = get_settings()
+    
+    if not settings.smtp_configured:
+        return {
+            "success": False,
+            "error": "SMTP not configured",
+            "config": {
+                "smtp_host": settings.smtp_host or "(not set)",
+                "smtp_port": settings.smtp_port,
+                "smtp_user": settings.smtp_user or "(not set)",
+                "smtp_from_email": settings.smtp_from_email or "(not set)",
+            }
+        }
+    
+    # Try to send a test email synchronously (not in background)
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        
+        msg = MIMEText("This is a test email from Heliox API Gateway.")
+        msg["Subject"] = "Heliox Test Email"
+        msg["From"] = f"Heliox <{settings.smtp_from_email or settings.smtp_user}>"
+        msg["To"] = settings.smtp_user  # Send to self
+        
+        if settings.smtp_secure:
+            smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
+        else:
+            smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+            smtp.starttls()
+        
+        smtp.login(settings.smtp_user, settings.smtp_pass)
+        smtp.sendmail(settings.smtp_from_email or settings.smtp_user, settings.smtp_user, msg.as_string())
+        smtp.quit()
+        
+        return {
+            "success": True,
+            "message": f"Test email sent to {settings.smtp_user}",
+            "config": {
+                "smtp_host": settings.smtp_host,
+                "smtp_port": settings.smtp_port,
+                "smtp_user": settings.smtp_user,
+            }
+        }
+    except smtplib.SMTPAuthenticationError as e:
+        return {
+            "success": False,
+            "error": f"Authentication failed: {str(e)}",
+            "hint": "Check SMTP_USER and SMTP_PASS. For Gmail, use an App Password."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"{type(e).__name__}: {str(e)}",
+            "config": {
+                "smtp_host": settings.smtp_host,
+                "smtp_port": settings.smtp_port,
+            }
+        }
