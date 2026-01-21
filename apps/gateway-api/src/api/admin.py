@@ -673,6 +673,7 @@ async def create_api_key(
         key=api_key.key,  # Only returned on creation
         key_prefix=api_key.key_prefix,
         status=api_key.status.value,
+        is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
         rate_limit_rps=api_key.rate_limit_rps,
@@ -779,6 +780,7 @@ async def rotate_api_key(
         key=api_key.key,  # Return new key
         key_prefix=api_key.key_prefix,
         status=api_key.status.value,
+        is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
         rate_limit_rps=api_key.rate_limit_rps,

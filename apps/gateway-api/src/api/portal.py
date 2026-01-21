@@ -350,6 +350,47 @@ async def rotate_api_key(
     )
 
 
+@router.patch("/keys/{key_id}/toggle", response_model=PortalApiKey)
+async def toggle_api_key(
+    key_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PortalApiKey:
+    """Enable or disable an API key."""
+    tenant = require_tenant(user)
+    
+    result = await db.execute(
+        select(ApiKey)
+        .where(ApiKey.id == key_id)
+        .where(ApiKey.tenant_id == tenant.id)
+    )
+    api_key = result.scalar_one_or_none()
+    
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API key not found")
+    
+    # Toggle status
+    if api_key.status == ApiKeyStatus.ACTIVE:
+        api_key.status = ApiKeyStatus.DISABLED
+    else:
+        api_key.status = ApiKeyStatus.ACTIVE
+    
+    await db.flush()
+    
+    return PortalApiKey(
+        id=api_key.id,
+        name=api_key.name,
+        key_prefix=api_key.key_prefix,
+        status=api_key.status.value,
+        is_active=api_key.is_active,
+        quota_daily=api_key.quota_daily,
+        quota_monthly=api_key.quota_monthly,
+        rate_limit_rps=api_key.rate_limit_rps,
+        created_at=api_key.created_at,
+        last_used_at=api_key.last_used_at,
+    )
+
+
 @router.delete("/keys/{key_id}")
 async def delete_api_key(
     key_id: str,

@@ -286,6 +286,10 @@ export const portalApi = {
     return request(`/portal/keys/${id}/rotate`, { method: 'POST' });
   },
 
+  async toggleApiKey(id: string): Promise<ApiKey> {
+    return request(`/portal/keys/${id}/toggle`, { method: 'PATCH' });
+  },
+
   // Logs
   async getLogs(params?: { page?: number; page_size?: number }): Promise<{ items: RequestLog[]; total: number }> {
     const query = new URLSearchParams();

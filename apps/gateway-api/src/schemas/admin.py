@@ -179,6 +179,7 @@ class ApiKeyResponse(ApiKeyBase):
     key: str = Field(..., description="The API key (shown only on creation)")
     key_prefix: str = Field(..., description="First 10 chars of the key for identification")
     status: str
+    is_active: bool
     created_at: datetime
     updated_at: datetime
     expires_at: datetime | None
@@ -195,6 +196,7 @@ class ApiKeyResponseMasked(BaseModel):
     name: str
     key_prefix: str
     status: str
+    is_active: bool
     quota_daily: int
     quota_monthly: int
     rate_limit_rps: float | None

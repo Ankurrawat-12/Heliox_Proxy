@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Power,
 } from 'lucide-react';
 
 function Modal({
@@ -84,6 +85,13 @@ export default function KeysPage() {
       queryClient.invalidateQueries({ queryKey: ['keys'] });
       setNewSecret(data.key);  // Backend returns full key in 'key' field
       setShowSecretModal(true);
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => portalApi.toggleApiKey(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keys'] });
     },
   });
 
@@ -186,6 +194,18 @@ export default function KeysPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => toggleMutation.mutate(key.id)}
+                          disabled={toggleMutation.isPending}
+                          className={`p-2 rounded-lg transition-colors ${
+                            key.is_active
+                              ? 'text-green-400 hover:text-red-400 hover:bg-red-500/10'
+                              : 'text-red-400 hover:text-green-400 hover:bg-green-500/10'
+                          }`}
+                          title={key.is_active ? 'Disable key' : 'Enable key'}
+                        >
+                          <Power size={16} />
+                        </button>
                         <button
                           onClick={() => rotateMutation.mutate(key.id)}
                           disabled={rotateMutation.isPending}
