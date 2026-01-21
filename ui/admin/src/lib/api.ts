@@ -4,7 +4,32 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-// Get admin key from localStorage (client-side only)
+// ============================================================================
+// AUTH TOKEN MANAGEMENT
+// ============================================================================
+
+let authToken: string | null = null
+
+export function getAuthToken(): string | null {
+  if (authToken) return authToken
+  if (typeof window !== 'undefined') {
+    authToken = localStorage.getItem('admin_auth_token')
+  }
+  return authToken
+}
+
+export function setAuthToken(token: string | null): void {
+  authToken = token
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('admin_auth_token', token)
+    } else {
+      localStorage.removeItem('admin_auth_token')
+    }
+  }
+}
+
+// Get admin key from localStorage (client-side only) - for backward compatibility
 function getAdminKey(): string {
   if (typeof window === 'undefined') return ''
   return localStorage.getItem('adminKey') || ''
@@ -20,15 +45,24 @@ async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = getAuthToken()
   const adminKey = getAdminKey()
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  }
+  
+  // Prefer JWT auth, fall back to API key
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else if (adminKey) {
+    headers['X-Admin-Key'] = adminKey
+  }
   
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Admin-Key': adminKey,
-      ...options.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {
@@ -37,6 +71,63 @@ async function fetchApi<T>(
   }
 
   return response.json()
+}
+
+// ============================================================================
+// AUTH TYPES & API
+// ============================================================================
+
+export interface AdminUser {
+  id: string
+  email: string
+  name: string
+  avatar_url: string | null
+  role: string
+  tenant_id: string | null
+  tenant_name: string | null
+  plan_name: string | null
+  email_verified: boolean
+  created_at: string
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+  user: AdminUser
+}
+
+export const authApi = {
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Login failed' }))
+      throw new Error(error.detail || 'Login failed')
+    }
+    
+    const data = await response.json()
+    setAuthToken(data.access_token)
+    return data
+  },
+  
+  async logout(): Promise<void> {
+    setAuthToken(null)
+  },
+  
+  async getMe(): Promise<AdminUser> {
+    return fetchApi<AdminUser>('/auth/me')
+  },
+  
+  async refreshToken(): Promise<AuthResponse> {
+    const response = await fetchApi<AuthResponse>('/auth/refresh', { method: 'POST' })
+    setAuthToken(response.access_token)
+    return response
+  },
 }
 
 // Types

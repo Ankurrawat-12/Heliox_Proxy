@@ -1,8 +1,3 @@
-'use client'
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
-import { AuthProvider } from '@/lib/auth'
 import '../globals.css'
 
 export default function AuthLayout({
@@ -10,13 +5,18 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [queryClient] = useState(() => new QueryClient())
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="Heliox Admin Panel - Secure Login" />
+        <meta name="robots" content="noindex, nofollow" />
+        <title>Admin Login - Heliox</title>
+      </head>
+      <body className="min-h-screen bg-[#0a0a0f]">
         {children}
-      </AuthProvider>
-    </QueryClientProvider>
+      </body>
+    </html>
   )
 }

@@ -1,21 +1,22 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AdminUser, authApi, getAuthToken, setAuthToken } from './api';
+import { User, authApi, getAuthToken, setAuthToken } from './api';
 
 interface AuthContextType {
-  user: AdminUser | null;
+  user: User | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  signup: (data: { email: string; password: string; name: string; company_name: string }) => Promise<void>;
   logout: () => void;
-  isAdmin: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AdminUser | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,15 +25,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const token = getAuthToken();
     if (token) {
       authApi.getMe()
-        .then((user) => {
-          // Only allow admin users
-          if (user.role === 'admin') {
-            setUser(user);
-          } else {
-            setAuthToken(null);
-            setError('Admin access required');
-          }
-        })
+        .then(setUser)
         .catch(() => {
           setAuthToken(null);
         })
@@ -47,16 +40,23 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const response = await authApi.login(email, password);
-      
-      // Check if user is admin
-      if (response.user.role !== 'admin') {
-        setAuthToken(null);
-        throw new Error('Admin access required. Please contact your administrator.');
-      }
-      
       setUser(response.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (data: { email: string; password: string; name: string; company_name: string }) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await authApi.signup(data);
+      setUser(response.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Signup failed');
       throw err;
     } finally {
       setLoading(false);
@@ -68,39 +68,43 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const isAdmin = user?.role === 'admin';
+  const refreshUser = async () => {
+    try {
+      const user = await authApi.getMe();
+      setUser(user);
+    } catch {
+      logout();
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, error, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAdminAuth() {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAdminAuth must be used within an AdminAuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
 
-// Protected route wrapper for admin pages
-export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin } = useAdminAuth();
+// Protected route wrapper
+export function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-4 text-zinc-400">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
     }

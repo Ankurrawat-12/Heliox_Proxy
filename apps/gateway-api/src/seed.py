@@ -2,17 +2,31 @@
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_context
-from src.models import ApiKey, CachePolicy, Plan, Route, Tenant
+from src.models import ApiKey, CachePolicy, Plan, Route, Tenant, User
 from src.models.api_key import ApiKeyStatus
 from src.models.plan import PREDEFINED_PLANS, PlanTier
+from src.models.user import UserRole
 
 logger = logging.getLogger(__name__)
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+# Default admin user (can be overridden with environment variables)
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@heliox.dev")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123456")
+ADMIN_NAME = os.environ.get("ADMIN_NAME", "Heliox Admin")
 
 # Realistic seed data
 SEED_TENANTS = [
@@ -214,8 +228,28 @@ async def seed_database(db: AsyncSession) -> dict:
         "api_keys_created": 0,
         "cache_policies_created": 0,
         "routes_created": 0,
+        "admin_created": False,
         "skipped": False,
     }
+    
+    # Always ensure admin user exists
+    existing_admin = await db.execute(
+        select(User).where(User.role == UserRole.ADMIN).limit(1)
+    )
+    if not existing_admin.scalar_one_or_none():
+        logger.info(f"Creating admin user: {ADMIN_EMAIL}")
+        admin_user = User(
+            email=ADMIN_EMAIL,
+            password_hash=hash_password(ADMIN_PASSWORD),
+            name=ADMIN_NAME,
+            role=UserRole.ADMIN,
+            email_verified=True,
+            is_active=True,
+        )
+        db.add(admin_user)
+        await db.flush()
+        summary["admin_created"] = True
+        logger.info(f"Admin user created: {ADMIN_EMAIL} (password: {ADMIN_PASSWORD})")
     
     # Always ensure plans exist (even if other data is seeded)
     existing_plans = await db.execute(select(Plan).limit(1))
