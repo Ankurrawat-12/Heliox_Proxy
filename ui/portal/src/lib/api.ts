@@ -32,9 +32,14 @@ export interface Tenant {
   id: string;
   name: string;
   description: string | null;
-  plan_id: string | null;
-  plan: Plan | null;
-  is_active: boolean;
+  plan_name: string | null;
+  plan_tier: string | null;
+  api_key_count: number;
+  route_count: number;
+  max_api_keys: number;
+  max_routes: number;
+  quota_daily: number;
+  quota_monthly: number;
   created_at: string;
 }
 
@@ -85,14 +90,15 @@ export interface Route {
 }
 
 export interface UsageStats {
-  requests_today: number;
-  requests_this_month: number;
-  quota_daily: number;
-  quota_monthly: number;
-  cache_hits: number;
-  cache_misses: number;
+  daily_requests: number;
+  monthly_requests: number;
+  daily_limit: number;
+  monthly_limit: number;
+  daily_percent: number;
+  monthly_percent: number;
+  cache_hit_rate: number;
   avg_latency_ms: number;
-  error_count: number;
+  error_rate: number;
 }
 
 export interface RequestLog {
@@ -276,29 +282,6 @@ export const portalApi = {
 
   async rotateApiKey(id: string): Promise<{ key: ApiKey; secret: string }> {
     return request(`/portal/keys/${id}/rotate`, { method: 'POST' });
-  },
-
-  // Routes
-  async getRoutes(): Promise<Route[]> {
-    return request<Route[]>('/portal/routes');
-  },
-
-  async createRoute(data: Partial<Route>): Promise<Route> {
-    return request('/portal/routes', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async updateRoute(id: string, data: Partial<Route>): Promise<Route> {
-    return request(`/portal/routes/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async deleteRoute(id: string): Promise<void> {
-    await request(`/portal/routes/${id}`, { method: 'DELETE' });
   },
 
   // Logs

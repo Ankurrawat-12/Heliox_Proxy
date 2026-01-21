@@ -102,18 +102,14 @@ export default function DashboardPage() {
     queryFn: portalApi.getApiKeys,
   });
 
-  const { data: routes } = useQuery({
-    queryKey: ['routes'],
-    queryFn: portalApi.getRoutes,
+  const { data: tenant } = useQuery({
+    queryKey: ['tenant'],
+    queryFn: portalApi.getTenant,
   });
 
-  const dailyUsagePercent = usage
-    ? Math.min(100, (usage.requests_today / (usage.quota_daily || 1000)) * 100)
-    : 0;
-
-  const monthlyUsagePercent = usage
-    ? Math.min(100, (usage.requests_this_month / (usage.quota_monthly || 10000)) * 100)
-    : 0;
+  // Use values from usage response (backend returns daily_percent/monthly_percent)
+  const dailyUsagePercent = usage?.daily_percent || 0;
+  const monthlyUsagePercent = usage?.monthly_percent || 0;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -131,37 +127,31 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Requests Today"
-          value={isLoading ? '...' : usage?.requests_today.toLocaleString() || '0'}
-          subtitle={`of ${usage?.quota_daily?.toLocaleString() || '1,000'} daily quota`}
+          value={isLoading ? '...' : (usage?.daily_requests?.toLocaleString() || '0')}
+          subtitle={`of ${usage?.daily_limit?.toLocaleString() || '1,000'} daily quota`}
           icon={Activity}
           color="indigo"
         />
         <StatCard
           title="Cache Hit Rate"
-          value={
-            isLoading
-              ? '...'
-              : usage?.cache_hits && usage?.cache_misses
-              ? `${Math.round((usage.cache_hits / (usage.cache_hits + usage.cache_misses)) * 100)}%`
-              : 'N/A'
-          }
-          subtitle={`${usage?.cache_hits || 0} hits / ${usage?.cache_misses || 0} misses`}
+          value={isLoading ? '...' : `${Math.round((usage?.cache_hit_rate || 0) * 100)}%`}
+          subtitle="Cache performance"
           icon={Zap}
           color="green"
         />
         <StatCard
           title="Avg Latency"
-          value={isLoading ? '...' : `${usage?.avg_latency_ms?.toFixed(0) || 0}ms`}
+          value={isLoading ? '...' : `${(usage?.avg_latency_ms || 0).toFixed(0)}ms`}
           subtitle="Response time"
           icon={Clock}
           color="yellow"
         />
         <StatCard
-          title="Errors"
-          value={isLoading ? '...' : usage?.error_count || 0}
+          title="Error Rate"
+          value={isLoading ? '...' : `${((usage?.error_rate || 0) * 100).toFixed(1)}%`}
           subtitle="In the last 24h"
           icon={AlertTriangle}
-          color={usage?.error_count ? 'red' : 'green'}
+          color={(usage?.error_rate || 0) > 0.01 ? 'red' : 'green'}
         />
       </div>
 
@@ -171,7 +161,7 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-white mb-4">Daily Usage</h3>
           <div className="mb-2 flex justify-between text-sm">
             <span className="text-zinc-400">
-              {usage?.requests_today?.toLocaleString() || 0} / {usage?.quota_daily?.toLocaleString() || '1,000'}
+              {usage?.daily_requests?.toLocaleString() || 0} / {usage?.daily_limit?.toLocaleString() || '1,000'}
             </span>
             <span className="text-zinc-400">{dailyUsagePercent.toFixed(1)}%</span>
           </div>
@@ -195,7 +185,7 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-white mb-4">Monthly Usage</h3>
           <div className="mb-2 flex justify-between text-sm">
             <span className="text-zinc-400">
-              {usage?.requests_this_month?.toLocaleString() || 0} / {usage?.quota_monthly?.toLocaleString() || '10,000'}
+              {usage?.monthly_requests?.toLocaleString() || 0} / {usage?.monthly_limit?.toLocaleString() || '10,000'}
             </span>
             <span className="text-zinc-400">{monthlyUsagePercent.toFixed(1)}%</span>
           </div>
@@ -228,7 +218,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">API Keys</p>
-                  <p className="text-xs text-zinc-500">Active keys</p>
+                  <p className="text-xs text-zinc-500">{tenant?.api_key_count || 0} / {tenant?.max_api_keys || 2} keys</p>
                 </div>
               </div>
               <span className="text-2xl font-bold text-white">{keys?.length || 0}</span>
@@ -240,10 +230,10 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">Routes</p>
-                  <p className="text-xs text-zinc-500">Configured routes</p>
+                  <p className="text-xs text-zinc-500">{tenant?.route_count || 0} / {tenant?.max_routes || 5} routes</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-white">{routes?.length || 0}</span>
+              <span className="text-2xl font-bold text-white">{tenant?.route_count || 0}</span>
             </div>
           </div>
         </div>
