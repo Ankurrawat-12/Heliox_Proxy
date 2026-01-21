@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
     queryFn: () => portalApi.getLogs({ page: 1, page_size: 10 }),
   });
 
-  // Backend returns cache_hit_rate as a decimal (0-1)
+  // Backend returns cache_hit_rate as a decimal (0-1), convert to percentage
   const cacheHitRate = Math.round((usage?.cache_hit_rate || 0) * 100);
 
   return (
