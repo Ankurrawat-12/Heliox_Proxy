@@ -383,6 +383,12 @@ export const adminApi = {
       body: JSON.stringify(data),
     })
   },
+  
+  deleteTenant: async (id: string): Promise<void> => {
+    await fetchApi(`/admin/tenants/${id}`, {
+      method: 'DELETE',
+    })
+  },
 
   // API Keys
   getKeys: async (): Promise<ApiKey[]> => {

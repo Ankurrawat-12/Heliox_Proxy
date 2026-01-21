@@ -7,12 +7,14 @@ import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import Badge from '@/components/Badge'
 import { useToast } from '@/components/Toast'
-import { Plus, Edit2, Crown, Zap, Building2 } from 'lucide-react'
+import { Plus, Edit2, Crown, Zap, Building2, Trash2 } from 'lucide-react'
+import ConfirmModal from '@/components/ConfirmModal'
 import { format } from 'date-fns'
 
 export default function TenantsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
+  const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
   const [formData, setFormData] = useState({ name: '', description: '', plan_id: '' })
   const { showToast } = useToast()
   
@@ -48,6 +50,18 @@ export default function TenantsPage() {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       setEditingTenant(null)
       showToast('Tenant updated successfully', 'success')
+    },
+    onError: (error: Error) => {
+      showToast(error.message, 'error')
+    },
+  })
+  
+  const deleteMutation = useMutation({
+    mutationFn: adminApi.deleteTenant,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      setDeletingTenant(null)
+      showToast('Tenant deleted successfully', 'success')
     },
     onError: (error: Error) => {
       showToast(error.message, 'error')
@@ -128,20 +142,33 @@ export default function TenantsPage() {
       key: 'actions',
       header: '',
       render: (tenant: Tenant) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setEditingTenant(tenant)
-            setFormData({ 
-              name: tenant.name, 
-              description: tenant.description || '',
-              plan_id: tenant.plan_id || '',
-            })
-          }}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <Edit2 className="w-4 h-4 text-gray-500" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditingTenant(tenant)
+              setFormData({ 
+                name: tenant.name, 
+                description: tenant.description || '',
+                plan_id: tenant.plan_id || '',
+              })
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Edit tenant"
+          >
+            <Edit2 className="w-4 h-4 text-gray-500" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeletingTenant(tenant)
+            }}
+            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete tenant"
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </button>
+        </div>
       ),
     },
   ]
@@ -279,6 +306,17 @@ export default function TenantsPage() {
           )}
         </form>
       </Modal>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingTenant}
+        onClose={() => setDeletingTenant(null)}
+        onConfirm={() => deletingTenant && deleteMutation.mutate(deletingTenant.id)}
+        title="Delete Tenant"
+        message={`Are you sure you want to delete "${deletingTenant?.name}"? This will also delete all associated API keys and routes. This action cannot be undone.`}
+        confirmText={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        variant="danger"
+      />
     </div>
   )
 }

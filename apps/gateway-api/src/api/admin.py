@@ -552,6 +552,40 @@ async def update_tenant(
     )
 
 
+@router.delete("/tenants/{tenant_id}", dependencies=[AdminDep])
+async def delete_tenant(
+    tenant_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Delete a tenant and all associated data."""
+    result = await db.execute(
+        select(Tenant)
+        .options(
+            selectinload(Tenant.api_keys),
+            selectinload(Tenant.routes),
+        )
+        .where(Tenant.id == tenant_id)
+    )
+    tenant = result.scalar_one_or_none()
+
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Delete associated API keys
+    for key in tenant.api_keys:
+        await db.delete(key)
+    
+    # Delete associated routes
+    for route in tenant.routes:
+        await db.delete(route)
+    
+    # Delete tenant
+    await db.delete(tenant)
+    await db.flush()
+
+    return {"message": f"Tenant '{tenant.name}' deleted successfully"}
+
+
 # =============================================================================
 # API KEY ENDPOINTS
 # =============================================================================
