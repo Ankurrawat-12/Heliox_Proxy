@@ -19,19 +19,24 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', email);
       const response = await authApi.login(email, password);
+      console.log('Login response:', response);
       
       // Check if user is admin
       if (response.user.role !== 'admin') {
         setAuthToken(null);
         setError('Admin access required. Only administrators can access this panel.');
+        setLoading(false);
         return;
       }
       
-      router.push('/');
+      console.log('Login successful, redirecting...');
+      // Use window.location for more reliable redirect
+      window.location.href = '/';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
       setLoading(false);
     }
   };

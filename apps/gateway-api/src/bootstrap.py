@@ -183,6 +183,34 @@ def run_schema_updates() -> None:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_tenant_id ON users(tenant_id)"))
                 conn.commit()
             
+            # =====================================================================
+            # ENSURE ADMIN USER EXISTS
+            # =====================================================================
+            result = conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM users WHERE role = 'admin'
+                )
+            """))
+            admin_exists = result.scalar()
+            
+            if not admin_exists:
+                import bcrypt
+                admin_email = os.environ.get("ADMIN_EMAIL", "admin@heliox.dev")
+                admin_password = os.environ.get("ADMIN_PASSWORD", "admin123456")
+                admin_name = os.environ.get("ADMIN_NAME", "Heliox Admin")
+                
+                # Hash password
+                password_hash = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt()).decode()
+                
+                logger.info(f"Creating admin user: {admin_email}")
+                conn.execute(text("""
+                    INSERT INTO users (email, password_hash, name, role, email_verified, is_active)
+                    VALUES (:email, :password_hash, :name, 'admin', true, true)
+                    ON CONFLICT (email) DO UPDATE SET role = 'admin'
+                """), {"email": admin_email, "password_hash": password_hash, "name": admin_name})
+                conn.commit()
+                logger.info(f"Admin user created successfully!")
+            
             logger.info("Schema updates completed successfully!")
             
     except Exception as e:
