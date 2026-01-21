@@ -1,14 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, authApi, getAuthToken, setAuthToken } from './api';
+import { User, authApi, getAuthToken, setAuthToken, SignupResponse } from './api';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (data: { email: string; password: string; name: string; company_name: string }) => Promise<void>;
+  signup: (data: { email: string; password: string; name: string; company_name: string }) => Promise<SignupResponse>;
+  verifyOtp: (email: string, otp: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -49,14 +50,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (data: { email: string; password: string; name: string; company_name: string }) => {
+  const signup = async (data: { email: string; password: string; name: string; company_name: string }): Promise<SignupResponse> => {
     setError(null);
     setLoading(true);
     try {
       const response = await authApi.signup(data);
-      setUser(response.user);
+      return response; // Returns signup response, user needs to verify OTP
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOtp = async (email: string, otp: string) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await authApi.verifyOtp(email, otp);
+      setUser(response.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
       throw err;
     } finally {
       setLoading(false);
@@ -78,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, error, login, signup, verifyOtp, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
