@@ -286,8 +286,8 @@ def create_app() -> FastAPI:
         description="Production-grade API Gateway with caching, rate limiting, and abuse detection",
         version=__version__,
         lifespan=lifespan,
-        docs_url="/docs" if settings.debug else None,
-        redoc_url="/redoc" if settings.debug else None,
+        docs_url="/docs",
+        redoc_url="/redoc",
     )
     
     # Add CORS middleware

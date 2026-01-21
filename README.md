@@ -18,10 +18,11 @@
 
 | Service | URL |
 |---------|-----|
-| **API Gateway** | https://heliox-gateway.onrender.com |
+| **API Gateway** | https://heliox-gateway.onrender.com/health |
 | **Admin Panel** | https://heliox-proxy.vercel.app |
 | **Customer Portal** | https://heliox-portal.vercel.app |
 | **API Documentation** | https://heliox-gateway.onrender.com/docs |
+| **ReDoc** | https://heliox-gateway.onrender.com/redoc |
 
 ---
 
