@@ -750,6 +750,9 @@ async def update_api_key(
         api_key.rate_limit_burst = data.rate_limit_burst
     if data.expires_at is not None:
         api_key.expires_at = data.expires_at
+    
+    # Manually update timestamp
+    api_key.updated_at = datetime.now(timezone.utc)
 
     await db.flush()
 
