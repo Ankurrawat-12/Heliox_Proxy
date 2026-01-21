@@ -58,11 +58,90 @@
 - Bloom filter for 404 caching
 - IP-based tracking
 
+### 🧮 Advanced Algorithms
+- **Token Bucket** - Burst-friendly rate limiting
+- **Leaky Bucket** - Smooth traffic shaping
+- **Sliding Window** - Precise rate counting
+- **Circuit Breaker** - Upstream protection with half-open recovery
+- **EWMA (Exponential Weighted Moving Average)** - Trend tracking for abuse detection
+- **Z-Score Anomaly Detection** - Statistical outlier identification
+- **Bloom Filter** - Probabilistic 404 negative caching
+- **Count-Min Sketch** - Space-efficient frequency counting
+- **HyperLogLog** - Cardinality estimation for unique visitors
+- **Consistent Hashing** - Distributed key routing with virtual nodes
+- **Priority Queue** - Request prioritization
+- **Exponential Backoff** - Retry strategies with jitter
+- **Adaptive Rate Limiting** - Dynamic limits based on system load
+
 ### 💳 Multi-Tenant Architecture
 - Isolated tenants with dedicated resources
 - Subscription plans (Free, Pro, Enterprise)
 - Per-tenant quotas and limits
 - Role-based access control
+
+---
+
+## 🧮 Algorithms Deep Dive
+
+### Rate Limiting
+
+| Algorithm | Description | Use Case |
+|-----------|-------------|----------|
+| **Token Bucket** | Tokens regenerate at fixed rate, allows bursts up to bucket size | Default rate limiting, bursty traffic |
+| **Leaky Bucket** | Requests leak at constant rate, enforces strict output rate | Traffic shaping, smooth output |
+| **Sliding Window** | Counts requests in rolling time window | Precise rate limiting |
+
+### Traffic Management
+
+| Algorithm | Description | Use Case |
+|-----------|-------------|----------|
+| **Circuit Breaker** | Three states (Closed→Open→Half-Open), protects upstream services | Prevent cascade failures |
+| **Adaptive Rate Limiter** | Adjusts limits based on system load using EWMA smoothing | Auto-scaling protection |
+| **Priority Queue** | Heap-based prioritization with O(log n) operations | Premium tier fast-tracking |
+| **Exponential Backoff** | Retry delays: `min(base * 2^attempt, max) + jitter` | Upstream retry logic |
+
+### Anomaly Detection
+
+| Algorithm | Description | Use Case |
+|-----------|-------------|----------|
+| **EWMA** | `EWMA_new = α × value + (1-α) × EWMA_old` | Smooth trend tracking |
+| **Z-Score** | `z = (x - μ) / σ` detects statistical outliers | Abuse detection (z > 3) |
+
+### Probabilistic Data Structures
+
+| Algorithm | Description | Use Case |
+|-----------|-------------|----------|
+| **Bloom Filter** | Bit array + k hash functions, O(k) lookup | 404 negative caching |
+| **Count-Min Sketch** | 2D array with d hash functions, frequency estimation | Hot key detection |
+| **HyperLogLog** | Cardinality estimation with ~2% error | Unique visitor counting |
+
+### Distributed Systems
+
+| Algorithm | Description | Use Case |
+|-----------|-------------|----------|
+| **Consistent Hashing** | Ring-based routing with virtual nodes | Load balancing, cache sharding |
+
+```
+Bloom Filter Visualization:
+┌─────────────────────────────────────┐
+│ Bit Array: [0,1,0,1,1,0,0,1,0,1...] │
+├─────────────────────────────────────┤
+│ "path" → hash₁=3, hash₂=7, hash₃=9  │
+│ Check bits[3,7,9] → all 1? Maybe in │
+│ Any 0? Definitely NOT in set        │
+└─────────────────────────────────────┘
+
+Circuit Breaker State Machine:
+┌────────┐  failure threshold  ┌──────┐
+│ CLOSED │ ─────────────────→ │ OPEN │
+└────────┘                     └──────┘
+     ↑                            │
+     │ success                    │ timeout
+     │                            ↓
+     │                      ┌───────────┐
+     └───────────────────── │ HALF-OPEN │
+         success threshold  └───────────┘
+```
 
 ---
 
