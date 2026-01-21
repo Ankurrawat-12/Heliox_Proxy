@@ -234,12 +234,14 @@ def build_user_response(user: User) -> UserResponse:
 # =============================================================================
 
 
-@router.post("/signup", response_model=SignupResponse)
+@router.post("/signup")
 async def signup(
     data: SignupRequest,
     db: AsyncSession = Depends(get_db),
-) -> SignupResponse:
-    """Create a new user account and tenant. Requires OTP verification before login."""
+) -> SignupResponse | TokenResponse:
+    """Create a new user account and tenant. Requires OTP verification before login (unless dev mode)."""
+    from src.config import get_settings
+    settings = get_settings()
     
     # Check if email already exists
     existing = await db.execute(select(User).where(User.email == data.email))
@@ -247,6 +249,30 @@ async def signup(
     if existing_user:
         # If user exists but not verified, allow re-registration with new OTP
         if not existing_user.email_verified:
+            if settings.skip_email_verification:
+                # Dev mode: auto-verify existing unverified user
+                existing_user.email_verified = True
+                existing_user.password_hash = hash_password(data.password)
+                existing_user.name = data.name
+                await db.flush()
+                
+                # Reload with relationships
+                await db.refresh(existing_user)
+                result = await db.execute(
+                    select(User)
+                    .options(selectinload(User.tenant).selectinload(Tenant.plan))
+                    .where(User.id == existing_user.id)
+                )
+                existing_user = result.scalar_one()
+                
+                token = create_access_token(existing_user.id, existing_user.email)
+                return TokenResponse(
+                    access_token=token,
+                    token_type="bearer",
+                    expires_in=settings.jwt_expiration_hours * 3600 if hasattr(settings, 'jwt_expiration_hours') else 86400,
+                    user=build_user_response(existing_user),
+                )
+            
             # Generate new OTP
             otp = generate_otp()
             existing_user.email_verification_token = otp
@@ -282,6 +308,36 @@ async def signup(
     )
     db.add(tenant)
     await db.flush()
+    
+    # Dev mode: skip email verification
+    if settings.skip_email_verification:
+        # Create user as owner (auto-verified)
+        user = User(
+            email=data.email,
+            password_hash=hash_password(data.password),
+            name=data.name,
+            tenant_id=tenant.id,
+            role=UserRole.OWNER,
+            email_verified=True,  # Auto-verified in dev mode
+        )
+        db.add(user)
+        await db.flush()
+        
+        # Reload with relationships
+        result = await db.execute(
+            select(User)
+            .options(selectinload(User.tenant).selectinload(Tenant.plan))
+            .where(User.id == user.id)
+        )
+        user = result.scalar_one()
+        
+        token = create_access_token(user.id, user.email)
+        return TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            expires_in=settings.jwt_expiration_hours * 3600 if hasattr(settings, 'jwt_expiration_hours') else 86400,
+            user=build_user_response(user),
+        )
     
     # Generate 6-digit OTP
     otp = generate_otp()

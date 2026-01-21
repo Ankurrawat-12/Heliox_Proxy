@@ -134,6 +134,12 @@ class Settings(BaseSettings):
         default=True,
         description="Automatically seed database with initial data on startup",
     )
+    
+    # Skip email verification (dev mode)
+    skip_email_verification: bool = Field(
+        default=False,
+        description="Skip email verification for signups (dev mode only)",
+    )
 
     @field_validator("cors_origins")
     @classmethod

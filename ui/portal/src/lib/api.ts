@@ -181,14 +181,17 @@ export interface SignupResponse {
   requires_verification: boolean;
 }
 
+// Dev mode returns AuthResponse directly (skip OTP)
+export type SignupResult = SignupResponse | AuthResponse;
+
 export const authApi = {
   async signup(data: {
     email: string;
     password: string;
     name: string;
     company_name: string;
-  }): Promise<SignupResponse> {
-    return request<SignupResponse>('/auth/signup', {
+  }): Promise<SignupResult> {
+    return request<SignupResult>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });

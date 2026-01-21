@@ -37,8 +37,16 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await authApi.signup(formData);
-      setStep('verify');
+      const response = await authApi.signup(formData);
+      
+      // Check if dev mode returned a token directly (no OTP needed)
+      if ('access_token' in response) {
+        setAuthToken(response.access_token);
+        router.push('/dashboard');
+      } else {
+        // Normal flow: requires OTP verification
+        setStep('verify');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
