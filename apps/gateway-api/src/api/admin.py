@@ -702,7 +702,25 @@ async def list_api_keys(
     )
     keys = result.scalars().all()
 
-    return [ApiKeyResponseMasked.model_validate(k) for k in keys]
+    return [
+        ApiKeyResponseMasked(
+            id=k.id,
+            tenant_id=k.tenant_id,
+            name=k.name,
+            key_prefix=k.key_prefix,
+            status=k.status.value if hasattr(k.status, 'value') else str(k.status),
+            is_active=k.is_active,
+            quota_daily=k.quota_daily,
+            quota_monthly=k.quota_monthly,
+            rate_limit_rps=k.rate_limit_rps,
+            rate_limit_burst=k.rate_limit_burst,
+            created_at=k.created_at,
+            updated_at=k.updated_at,
+            expires_at=k.expires_at,
+            last_used_at=k.last_used_at,
+        )
+        for k in keys
+    ]
 
 
 @router.patch("/keys/{key_id}", response_model=ApiKeyResponseMasked, dependencies=[AdminDep])
@@ -735,7 +753,22 @@ async def update_api_key(
 
     await db.flush()
 
-    return ApiKeyResponseMasked.model_validate(api_key)
+    return ApiKeyResponseMasked(
+        id=api_key.id,
+        tenant_id=api_key.tenant_id,
+        name=api_key.name,
+        key_prefix=api_key.key_prefix,
+        status=api_key.status.value if hasattr(api_key.status, 'value') else str(api_key.status),
+        is_active=api_key.is_active,
+        quota_daily=api_key.quota_daily,
+        quota_monthly=api_key.quota_monthly,
+        rate_limit_rps=api_key.rate_limit_rps,
+        rate_limit_burst=api_key.rate_limit_burst,
+        created_at=api_key.created_at,
+        updated_at=api_key.updated_at,
+        expires_at=api_key.expires_at,
+        last_used_at=api_key.last_used_at,
+    )
 
 
 @router.delete("/keys/{key_id}", dependencies=[AdminDep])
