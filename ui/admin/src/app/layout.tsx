@@ -10,18 +10,28 @@ import { ToastProvider } from '@/components/Toast'
 import { AdminAuthProvider, useAdminAuth } from '@/lib/auth'
 import { getAuthToken } from '@/lib/api'
 
+// Pages that don't require authentication
+const PUBLIC_PATHS = ['/login', '/forgot-password']
+
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { user, loading } = useAdminAuth()
 
-  // Check auth on mount
+  const isPublicPath = PUBLIC_PATHS.some(path => pathname?.startsWith(path))
+
+  // Check auth on mount (only for protected routes)
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !isPublicPath) {
       router.push('/login')
     }
-  }, [loading, user, router])
+  }, [loading, user, router, isPublicPath])
+
+  // For public pages, render without auth check
+  if (isPublicPath) {
+    return <>{children}</>
+  }
 
   // Show loading while checking auth
   if (loading) {

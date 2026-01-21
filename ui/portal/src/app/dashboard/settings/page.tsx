@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi, portalApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -29,11 +29,15 @@ export default function SettingsPage() {
   const { data: tenant } = useQuery({
     queryKey: ['tenant'],
     queryFn: portalApi.getTenant,
-    onSuccess: (data) => {
-      setCompanyName(data.name);
-      setCompanyDescription(data.description || '');
-    },
   });
+
+  // Initialize company form when tenant data loads
+  useEffect(() => {
+    if (tenant) {
+      setCompanyName(tenant.name);
+      setCompanyDescription(tenant.description || '');
+    }
+  }, [tenant]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: { name?: string }) => authApi.updateProfile(data),
