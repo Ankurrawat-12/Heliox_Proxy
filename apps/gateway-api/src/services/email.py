@@ -141,6 +141,51 @@ class EmailService:
         
         return self.send_email(to_email, "Verify your Heliox account", html_content, text_content)
     
+    def send_otp_email(self, to_email: str, otp: str) -> bool:
+        """Send OTP verification email."""
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+                .otp-box {{ background: #1a1a2e; color: #fff; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 20px 40px; border-radius: 10px; text-align: center; margin: 20px 0; }}
+                .footer {{ text-align: center; color: #666; font-size: 12px; margin-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔐 Verify Your Email</h1>
+                </div>
+                <div class="content">
+                    <h2>Your verification code</h2>
+                    <p>Enter this code to verify your email address:</p>
+                    <div class="otp-box">{otp}</div>
+                    <p><strong>This code expires in 10 minutes.</strong></p>
+                    <p>If you didn't request this code, you can safely ignore this email.</p>
+                </div>
+                <div class="footer">
+                    <p>© 2024 Heliox. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        Your Heliox verification code is: {otp}
+        
+        This code expires in 10 minutes.
+        
+        If you didn't request this code, you can safely ignore this email.
+        """
+        
+        return self.send_email(to_email, f"Your Heliox verification code: {otp}", html_content, text_content)
+    
     def send_password_reset_email(self, to_email: str, token: str) -> bool:
         """Send password reset email."""
         reset_url = f"{self.settings.frontend_url}/reset-password?token={token}"

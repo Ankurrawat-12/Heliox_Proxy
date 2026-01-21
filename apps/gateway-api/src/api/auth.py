@@ -1,5 +1,6 @@
 """Authentication API endpoints."""
 
+import random
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -19,6 +20,11 @@ from src.models.user import UserRole
 from src.services.email import email_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def generate_otp() -> str:
+    """Generate a 6-digit OTP."""
+    return str(random.randint(100000, 999999))
 
 
 # =============================================================================
@@ -91,6 +97,27 @@ class UpdateProfileRequest(BaseModel):
     
     name: str | None = Field(None, min_length=1, max_length=255)
     avatar_url: str | None = None
+
+
+class VerifyOtpRequest(BaseModel):
+    """Request to verify email with OTP."""
+    
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class ResendOtpRequest(BaseModel):
+    """Request to resend OTP."""
+    
+    email: EmailStr
+
+
+class SignupResponse(BaseModel):
+    """Signup response (before email verification)."""
+    
+    message: str
+    email: str
+    requires_verification: bool = True
 
 
 # =============================================================================
@@ -207,16 +234,35 @@ def build_user_response(user: User) -> UserResponse:
 # =============================================================================
 
 
-@router.post("/signup", response_model=TokenResponse)
+@router.post("/signup", response_model=SignupResponse)
 async def signup(
     data: SignupRequest,
     db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    """Create a new user account and tenant."""
+) -> SignupResponse:
+    """Create a new user account and tenant. Requires OTP verification before login."""
     
     # Check if email already exists
     existing = await db.execute(select(User).where(User.email == data.email))
-    if existing.scalar_one_or_none():
+    existing_user = existing.scalar_one_or_none()
+    if existing_user:
+        # If user exists but not verified, allow re-registration with new OTP
+        if not existing_user.email_verified:
+            # Generate new OTP
+            otp = generate_otp()
+            existing_user.email_verification_token = otp
+            existing_user.email_verification_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+            existing_user.password_hash = hash_password(data.password)
+            existing_user.name = data.name
+            await db.flush()
+            
+            # Send OTP email
+            email_service.send_otp_email(data.email, otp)
+            
+            return SignupResponse(
+                message="Verification code sent to your email",
+                email=data.email,
+                requires_verification=True,
+            )
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Check if company name already exists
@@ -237,10 +283,10 @@ async def signup(
     db.add(tenant)
     await db.flush()
     
-    # Generate email verification token
-    verification_token = secrets.token_urlsafe(32)
+    # Generate 6-digit OTP
+    otp = generate_otp()
     
-    # Create user as owner
+    # Create user as owner (not verified yet)
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
@@ -248,35 +294,98 @@ async def signup(
         tenant_id=tenant.id,
         role=UserRole.OWNER,
         email_verified=False,
-        email_verification_token=verification_token,
-        email_verification_expires=datetime.now(timezone.utc) + timedelta(hours=24),
+        email_verification_token=otp,
+        email_verification_expires=datetime.now(timezone.utc) + timedelta(minutes=10),
     )
     db.add(user)
     await db.flush()
     
-    # Send verification email (async, don't block signup)
-    email_service.send_verification_email(data.email, verification_token)
+    # Send OTP email
+    email_service.send_otp_email(data.email, otp)
     
-    # Send welcome email
-    email_service.send_welcome_email(data.email, data.company_name)
+    return SignupResponse(
+        message="Verification code sent to your email",
+        email=data.email,
+        requires_verification=True,
+    )
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+async def verify_otp(
+    data: VerifyOtpRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Verify email with OTP and return auth token."""
     
-    # Generate token
-    access_token, expires_in = create_access_token(user.id)
-    
-    # Reload user with tenant
-    await db.refresh(user)
     result = await db.execute(
         select(User)
         .options(selectinload(User.tenant).selectinload(Tenant.plan))
-        .where(User.id == user.id)
+        .where(User.email == data.email)
     )
-    user = result.scalar_one()
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+    
+    if user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    if not user.email_verification_token:
+        raise HTTPException(status_code=400, detail="No verification pending")
+    
+    if user.email_verification_expires and user.email_verification_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
+    
+    if user.email_verification_token != data.otp:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    # Mark email as verified
+    user.email_verified = True
+    user.email_verification_token = None
+    user.email_verification_expires = None
+    await db.flush()
+    
+    # Send welcome email
+    if user.tenant:
+        email_service.send_welcome_email(user.email, user.tenant.name)
+    
+    # Generate token
+    access_token, expires_in = create_access_token(user.id)
     
     return TokenResponse(
         access_token=access_token,
         expires_in=expires_in,
         user=build_user_response(user),
     )
+
+
+@router.post("/resend-otp")
+async def resend_otp(
+    data: ResendOtpRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Resend verification OTP."""
+    
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If the email is registered, a verification code will be sent"}
+    
+    if user.email_verified:
+        return {"message": "Email already verified. You can login."}
+    
+    # Generate new OTP
+    otp = generate_otp()
+    user.email_verification_token = otp
+    user.email_verification_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    await db.flush()
+    
+    # Send OTP email
+    email_service.send_otp_email(user.email, otp)
+    
+    return {"message": "Verification code sent to your email"}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -305,6 +414,13 @@ async def login(
     
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Account is disabled")
+    
+    # Check email verification (except for admins)
+    if not user.email_verified and user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403, 
+            detail="Please verify your email before logging in. Check your inbox for the verification code."
+        )
     
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)

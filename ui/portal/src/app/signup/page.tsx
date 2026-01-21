@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, ArrowRight, Check, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Check, Sparkles, ArrowLeft, Mail } from 'lucide-react';
 import { authApi, setAuthToken } from '@/lib/api';
 
 const features = [
@@ -17,15 +17,19 @@ const features = [
 
 export default function SignupPage() {
   const router = useRouter();
+  const [step, setStep] = useState<'signup' | 'verify'>('signup');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     company_name: '',
   });
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,13 +37,80 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const response = await authApi.signup(formData);
-      setAuthToken(response.access_token);
-      router.push('/dashboard');
+      await authApi.signup(formData);
+      setStep('verify');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      // Handle paste
+      const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+      const newOtp = [...otp];
+      digits.forEach((digit, i) => {
+        if (index + i < 6) {
+          newOtp[index + i] = digit;
+        }
+      });
+      setOtp(newOtp);
+      // Focus last filled or next empty
+      const nextIndex = Math.min(index + digits.length, 5);
+      document.getElementById(`otp-${nextIndex}`)?.focus();
+    } else {
+      const newOtp = [...otp];
+      newOtp[index] = value.replace(/\D/g, '');
+      setOtp(newOtp);
+      // Auto-focus next input
+      if (value && index < 5) {
+        document.getElementById(`otp-${index + 1}`)?.focus();
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      document.getElementById(`otp-${index - 1}`)?.focus();
+    }
+  };
+
+  const handleVerify = async () => {
+    const otpCode = otp.join('');
+    if (otpCode.length !== 6) {
+      setError('Please enter the 6-digit code');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await authApi.verifyOtp(formData.email, otpCode);
+      setAuthToken(response.access_token);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendLoading(true);
+    setResendSuccess(false);
+    setError('');
+
+    try {
+      await authApi.resendOtp(formData.email);
+      setResendSuccess(true);
+      setTimeout(() => setResendSuccess(false), 5000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend code');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -125,124 +196,201 @@ export default function SignupPage() {
             <span className="text-2xl font-bold text-white">Heliox</span>
           </div>
 
-          <h1 className="text-3xl font-bold text-white mb-2">Create your account</h1>
-          <p className="text-zinc-400 mb-8">Start your free trial, no credit card required</p>
+          {step === 'signup' ? (
+            <>
+              <h1 className="text-3xl font-bold text-white mb-2">Create your account</h1>
+              <p className="text-zinc-400 mb-8">Start your free trial, no credit card required</p>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Full name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="input"
-                placeholder="John Doe"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Company name
-              </label>
-              <input
-                type="text"
-                value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className="input"
-                placeholder="Acme Inc."
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Work email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="input"
-                placeholder="you@company.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="input pr-12"
-                  placeholder="••••••••"
-                  minLength={8}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-              <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                id="terms"
-                className="w-4 h-4 mt-1 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500"
-                required
-              />
-              <label htmlFor="terms" className="text-sm text-zinc-400">
-                I agree to the{' '}
-                <Link href="/terms" className="text-indigo-400 hover:text-indigo-300">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary flex items-center justify-center gap-2 py-3"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  Create account
-                  <ArrowRight size={18} />
-                </>
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
 
-          <p className="mt-8 text-center text-zinc-400">
-            Already have an account?{' '}
-            <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
-              Sign in
-            </Link>
-          </p>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Full name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="input"
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Company name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    className="input"
+                    placeholder="Acme Inc."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Work email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="input"
+                    placeholder="you@company.com"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="input pr-12"
+                      placeholder="••••••••"
+                      minLength={8}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">Minimum 8 characters</p>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    className="w-4 h-4 mt-1 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500"
+                    required
+                  />
+                  <label htmlFor="terms" className="text-sm text-zinc-400">
+                    I agree to the{' '}
+                    <Link href="/terms" className="text-indigo-400 hover:text-indigo-300">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/privacy" className="text-indigo-400 hover:text-indigo-300">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-primary flex items-center justify-center gap-2 py-3"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="mt-8 text-center text-zinc-400">
+                Already have an account?{' '}
+                <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setStep('signup')}
+                className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
+              >
+                <ArrowLeft size={18} />
+                Back
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6">
+                <Mail className="text-indigo-400" size={32} />
+              </div>
+
+              <h1 className="text-3xl font-bold text-white mb-2">Verify your email</h1>
+              <p className="text-zinc-400 mb-8">
+                We've sent a 6-digit code to <span className="text-white font-medium">{formData.email}</span>
+              </p>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">
+                  {error}
+                </div>
+              )}
+
+              {resendSuccess && (
+                <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-lg mb-6">
+                  Verification code sent! Check your inbox.
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-center mb-8">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`otp-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    className="w-12 h-14 text-center text-2xl font-bold bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={handleVerify}
+                disabled={loading || otp.join('').length !== 6}
+                className="w-full btn-primary flex items-center justify-center gap-2 py-3 mb-4"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Verify & Continue
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-zinc-400">
+                Didn't receive the code?{' '}
+                <button
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="text-indigo-400 hover:text-indigo-300 font-medium disabled:opacity-50"
+                >
+                  {resendLoading ? 'Sending...' : 'Resend'}
+                </button>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

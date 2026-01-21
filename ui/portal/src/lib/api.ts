@@ -175,19 +175,39 @@ async function request<T>(
 // AUTH API
 // ============================================================================
 
+export interface SignupResponse {
+  message: string;
+  email: string;
+  requires_verification: boolean;
+}
+
 export const authApi = {
   async signup(data: {
     email: string;
     password: string;
     name: string;
     company_name: string;
-  }): Promise<AuthResponse> {
-    const response = await request<AuthResponse>('/auth/signup', {
+  }): Promise<SignupResponse> {
+    return request<SignupResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  async verifyOtp(email: string, otp: string): Promise<AuthResponse> {
+    const response = await request<AuthResponse>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
     setAuthToken(response.access_token);
     return response;
+  },
+
+  async resendOtp(email: string): Promise<{ message: string }> {
+    return request('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
