@@ -1,5 +1,9 @@
 """Main FastAPI application entry point."""
 
+# IMPORTANT: Run schema updates BEFORE any ORM models are imported
+# This ensures database schema matches what SQLAlchemy expects
+import src.bootstrap  # noqa: F401 - runs schema updates on import
+
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
