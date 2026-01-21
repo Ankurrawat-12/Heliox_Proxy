@@ -78,17 +78,37 @@ export default function SignupPage() {
           </div>
 
           <div className="mt-12 p-6 bg-zinc-800/50 rounded-xl border border-zinc-700">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <span className="text-white font-bold">AK</span>
+            <div className="flex items-center gap-6 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">JB</span>
+                </div>
+                <div>
+                  <p className="text-white font-medium text-sm">Jay Bankoti</p>
+                  <p className="text-zinc-500 text-xs">Founder</p>
+                </div>
               </div>
-              <div>
-                <p className="text-white font-medium">Ankur Kumar</p>
-                <p className="text-zinc-500 text-sm">Founder, TechStartup</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">AR</span>
+                </div>
+                <div>
+                  <p className="text-white font-medium text-sm">Ankur Rawat</p>
+                  <p className="text-zinc-500 text-xs">Co-Founder</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">KG</span>
+                </div>
+                <div>
+                  <p className="text-white font-medium text-sm">Kushagra Gupta</p>
+                  <p className="text-zinc-500 text-xs">Co-Founder</p>
+                </div>
               </div>
             </div>
             <p className="text-zinc-300 italic">
-              "Heliox cut our API latency by 60% and saved us countless hours on infrastructure management. Highly recommended!"
+              "Building Heliox to make API management simple, fast, and reliable for developers everywhere."
             </p>
           </div>
         </div>
