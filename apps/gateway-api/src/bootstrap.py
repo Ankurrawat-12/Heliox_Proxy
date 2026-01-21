@@ -115,37 +115,36 @@ def run_schema_updates() -> None:
             # =====================================================================
             # TENANTS TABLE UPDATES
             # =====================================================================
-            result = conn.execute(text("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.columns 
-                    WHERE table_name = 'tenants' AND column_name = 'plan_id'
-                )
-            """))
-            if not result.scalar():
-                logger.info("Adding plan_id to tenants...")
-                conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES plans(id) ON DELETE SET NULL"))
-                conn.commit()
-                
-                # Set default plan
-                conn.execute(text("""
-                    UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE is_default = true LIMIT 1)
-                    WHERE plan_id IS NULL
-                """))
-                conn.commit()
             
-            # Razorpay columns
-            result = conn.execute(text("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.columns 
-                    WHERE table_name = 'tenants' AND column_name = 'razorpay_customer_id'
-                )
+            # Add all potentially missing columns to tenants table
+            tenant_columns = [
+                ("plan_id", "UUID REFERENCES plans(id) ON DELETE SET NULL"),
+                ("billing_email", "VARCHAR(255)"),
+                ("stripe_customer_id", "VARCHAR(255)"),
+                ("stripe_subscription_id", "VARCHAR(255)"),
+                ("razorpay_customer_id", "VARCHAR(255)"),
+                ("razorpay_subscription_id", "VARCHAR(255)"),
+                ("razorpay_payment_id", "VARCHAR(255)"),
+            ]
+            
+            for col_name, col_type in tenant_columns:
+                result = conn.execute(text(f"""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.columns 
+                        WHERE table_name = 'tenants' AND column_name = '{col_name}'
+                    )
+                """))
+                if not result.scalar():
+                    logger.info(f"Adding {col_name} to tenants...")
+                    conn.execute(text(f"ALTER TABLE tenants ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                    conn.commit()
+            
+            # Set default plan for existing tenants without one
+            conn.execute(text("""
+                UPDATE tenants SET plan_id = (SELECT id FROM plans WHERE is_default = true LIMIT 1)
+                WHERE plan_id IS NULL
             """))
-            if not result.scalar():
-                logger.info("Adding Razorpay columns to tenants...")
-                conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(255)"))
-                conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_id VARCHAR(255)"))
-                conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(255)"))
-                conn.commit()
+            conn.commit()
             
             # =====================================================================
             # USERS TABLE
