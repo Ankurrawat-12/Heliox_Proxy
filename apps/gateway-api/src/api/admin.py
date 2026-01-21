@@ -672,14 +672,14 @@ async def create_api_key(
         name=api_key.name,
         key=api_key.key,  # Only returned on creation
         key_prefix=api_key.key_prefix,
-        status=api_key.status.value,
+        status=api_key.status.value if hasattr(api_key.status, 'value') else str(api_key.status),
         is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
         rate_limit_rps=api_key.rate_limit_rps,
         rate_limit_burst=api_key.rate_limit_burst,
         created_at=api_key.created_at,
-        updated_at=api_key.updated_at,
+        updated_at=api_key.updated_at or datetime.now(timezone.utc),
         expires_at=api_key.expires_at,
         last_used_at=api_key.last_used_at,
     )
@@ -806,6 +806,7 @@ async def rotate_api_key(
     new_key = generate_api_key()
     api_key.key = new_key
     api_key.key_prefix = new_key[:10]
+    api_key.updated_at = datetime.now(timezone.utc)
 
     await db.flush()
 
@@ -815,7 +816,7 @@ async def rotate_api_key(
         name=api_key.name,
         key=api_key.key,  # Return new key
         key_prefix=api_key.key_prefix,
-        status=api_key.status.value,
+        status=api_key.status.value if hasattr(api_key.status, 'value') else str(api_key.status),
         is_active=api_key.is_active,
         quota_daily=api_key.quota_daily,
         quota_monthly=api_key.quota_monthly,
