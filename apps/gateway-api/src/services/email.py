@@ -3,6 +3,9 @@
 import logging
 import smtplib
 import threading
+import json
+import urllib.request
+import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -13,10 +16,48 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails via SMTP."""
+    """Service for sending emails via Resend API or SMTP."""
     
     def __init__(self):
         self.settings = get_settings()
+    
+    def _send_via_resend(
+        self,
+        to_email: str,
+        subject: str,
+        html_content: str,
+    ) -> bool:
+        """Send email via Resend API."""
+        try:
+            data = json.dumps({
+                "from": f"{self.settings.smtp_from_name} <{self.settings.resend_from_email or 'onboarding@resend.dev'}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }).encode('utf-8')
+            
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=data,
+                headers={
+                    "Authorization": f"Bearer {self.settings.resend_api_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                logger.info(f"✓ Email sent via Resend to {to_email}: {result.get('id')}")
+                return True
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8') if e.fp else str(e)
+            logger.error(f"Resend API error: {e.code} - {error_body}")
+            return False
+        except Exception as e:
+            logger.error(f"Resend error: {type(e).__name__}: {e}")
+            return False
     
     def _get_smtp_connection(self) -> smtplib.SMTP:
         """Create SMTP connection."""
@@ -37,7 +78,13 @@ class EmailService:
         text_content: Optional[str] = None,
     ) -> bool:
         """Send an email synchronously (internal)."""
-        logger.info(f"Attempting to send email to {to_email}")
+        # Try Resend API first if configured
+        if self.settings.resend_api_key:
+            logger.info(f"Sending email via Resend API to {to_email}")
+            return self._send_via_resend(to_email, subject, html_content)
+        
+        # Fall back to SMTP
+        logger.info(f"Attempting to send email via SMTP to {to_email}")
         logger.info(f"SMTP Config: host={self.settings.smtp_host}, port={self.settings.smtp_port}, secure={self.settings.smtp_secure}, user={self.settings.smtp_user}")
         
         try:

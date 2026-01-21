@@ -102,10 +102,24 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = Field(default="", description="Razorpay Key Secret")
     razorpay_webhook_secret: str = Field(default="", description="Razorpay Webhook Secret")
     
+    # Resend Configuration (alternative to SMTP - works better on cloud platforms)
+    resend_api_key: str = Field(default="", description="Resend API Key")
+    resend_from_email: str = Field(default="", description="Resend from email (must be verified domain)")
+    
     @property
     def smtp_configured(self) -> bool:
         """Check if SMTP is configured."""
         return bool(self.smtp_host and self.smtp_user and self.smtp_pass)
+    
+    @property
+    def resend_configured(self) -> bool:
+        """Check if Resend is configured."""
+        return bool(self.resend_api_key)
+    
+    @property
+    def email_configured(self) -> bool:
+        """Check if any email provider is configured."""
+        return self.resend_configured or self.smtp_configured
     
     @property
     def razorpay_configured(self) -> bool:

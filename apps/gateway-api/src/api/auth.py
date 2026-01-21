@@ -605,27 +605,78 @@ async def test_email() -> dict:
     from src.config import get_settings
     settings = get_settings()
     
+    # Check Resend first
+    if settings.resend_api_key:
+        try:
+            import json
+            import urllib.request
+            import urllib.error
+            
+            test_email_addr = settings.smtp_user or "test@example.com"
+            data = json.dumps({
+                "from": f"Heliox <{settings.resend_from_email or 'onboarding@resend.dev'}>",
+                "to": [test_email_addr],
+                "subject": "Heliox Test Email",
+                "html": "<p>This is a test email from Heliox API Gateway via Resend.</p>",
+            }).encode('utf-8')
+            
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=data,
+                headers={
+                    "Authorization": f"Bearer {settings.resend_api_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                return {
+                    "success": True,
+                    "provider": "resend",
+                    "message": f"Test email sent via Resend",
+                    "email_id": result.get("id"),
+                    "to": test_email_addr,
+                }
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8') if e.fp else str(e)
+            return {
+                "success": False,
+                "provider": "resend",
+                "error": f"Resend API error: {e.code}",
+                "details": error_body,
+                "hint": "Check your RESEND_API_KEY and RESEND_FROM_EMAIL (must use verified domain)",
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "provider": "resend",
+                "error": f"{type(e).__name__}: {str(e)}",
+            }
+    
+    # Fall back to SMTP
     if not settings.smtp_configured:
         return {
             "success": False,
-            "error": "SMTP not configured",
+            "error": "No email provider configured",
+            "hint": "Set RESEND_API_KEY (recommended for cloud) or SMTP settings",
             "config": {
+                "resend_api_key": "(not set)",
                 "smtp_host": settings.smtp_host or "(not set)",
-                "smtp_port": settings.smtp_port,
                 "smtp_user": settings.smtp_user or "(not set)",
-                "smtp_from_email": settings.smtp_from_email or "(not set)",
             }
         }
     
-    # Try to send a test email synchronously (not in background)
+    # Try SMTP
     try:
         import smtplib
         from email.mime.text import MIMEText
         
-        msg = MIMEText("This is a test email from Heliox API Gateway.")
+        msg = MIMEText("This is a test email from Heliox API Gateway via SMTP.")
         msg["Subject"] = "Heliox Test Email"
         msg["From"] = f"Heliox <{settings.smtp_from_email or settings.smtp_user}>"
-        msg["To"] = settings.smtp_user  # Send to self
+        msg["To"] = settings.smtp_user
         
         if settings.smtp_secure:
             smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10)
@@ -639,25 +690,20 @@ async def test_email() -> dict:
         
         return {
             "success": True,
-            "message": f"Test email sent to {settings.smtp_user}",
-            "config": {
-                "smtp_host": settings.smtp_host,
-                "smtp_port": settings.smtp_port,
-                "smtp_user": settings.smtp_user,
-            }
+            "provider": "smtp",
+            "message": f"Test email sent via SMTP to {settings.smtp_user}",
         }
     except smtplib.SMTPAuthenticationError as e:
         return {
             "success": False,
+            "provider": "smtp",
             "error": f"Authentication failed: {str(e)}",
             "hint": "Check SMTP_USER and SMTP_PASS. For Gmail, use an App Password."
         }
     except Exception as e:
         return {
             "success": False,
+            "provider": "smtp",
             "error": f"{type(e).__name__}: {str(e)}",
-            "config": {
-                "smtp_host": settings.smtp_host,
-                "smtp_port": settings.smtp_port,
-            }
+            "hint": "SMTP may be blocked on cloud platforms. Try using RESEND_API_KEY instead.",
         }
